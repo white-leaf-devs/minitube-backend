@@ -1,25 +1,30 @@
-import ffmpeg
+import cv2
+from PIL import Image
 
-def generate_thumbnail(in_filename, out_filename, time, width):
-  try:
-    (
-      ffmpeg
-      .input(in_filename,ss=time)
-      .filter('scale', width, -1)
-      .output(out_filename, vframes=1)
-      .run()
-    )
-  except ffmpeg.Error as e:
-    print(e.stderr.decode(), file=sys.stderr)
-    sys.exit(1)
+def getThumbnails(video, total_frames, jumps=5):
+    thumbnails = []
 
-def generate_n_thumbnails(in_filename, out_file_prefix, n=5):
-  vid = ffmpeg.probe(in_filename)
-  duration = float(vid['streams'][0]['duration'])
+    selected_frames = [i*(total_frames//jumps) for i in range(jumps)]
 
-  for i in range(n):
-    generate_thumbnail(in_filename, f'{out_file_prefix}_{i+1}.png', (i/n)*duration, 120)
+    success = True
+    counter = 0
+    while success:
+        success, pixels = video.read()
 
+        if counter in selected_frames:
+            img = Image.fromarray(pixels.astype('uint8'), 'RGB').resize((240,135))
+            thumbnails.append(img)
+
+        counter += 1
+
+    return thumbnails
+
+
+def buildThumbnails(in_filename, out_file_prefix):
+    video = cv2.VideoCapture(in_filename)
+
+    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    thumbnails = getThumbnails(video, frame_count)
 
 if __name__ == '__main__':
-    generate_n_thumbnails('La dura vida de Rubius.mp4', 'nani')
+    buildThumbnails('La dura vida de Rubius.mp4', 'nani')
