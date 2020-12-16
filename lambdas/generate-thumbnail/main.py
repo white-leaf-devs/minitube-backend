@@ -13,5 +13,13 @@ def generate_thumbnail(in_filename, out_filename, time, width):
     print(e.stderr.decode(), file=sys.stderr)
     sys.exit(1)
 
+def generate_n_thumbnails(in_filename, out_file_prefix, n=5):
+  vid = ffmpeg.probe(in_filename)
+  duration = float(vid['streams'][0]['duration'])
+
+  for i in range(n):
+    generate_thumbnail(in_filename, f'{out_file_prefix}_{i+1}.png', (i/n)*duration, 120)
+
+
 if __name__ == '__main__':
-    generate_thumbnail('La dura vida de Rubius.mp4', 'nani.png', 0.1, 120)
+    generate_n_thumbnails('La dura vida de Rubius.mp4', 'nani')
