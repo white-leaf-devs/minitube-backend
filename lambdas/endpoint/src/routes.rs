@@ -23,15 +23,19 @@ pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
 
     log::info!("Uploading video to S3");
     log::debug!("Parsing multipart data");
-    let mut multipart = parse_multipart(req)?;
+    let multipart = parse_multipart(req)?;
+    let entry = multipart.into_entry().into_result()?;
 
     let mut buf = Vec::new();
-    while let Some(mut field) = multipart.read_entry()? {
-        field.data.read_to_end(&mut buf)?;
+    let content_type;
+    if let Some(mut entry) = entry {
+        content_type = entry.headers.content_type.map(|mime| mime.to_string());
+        entry.data.read_to_end(&mut buf)?;
+    } else {
+        return Err(Error::invalid_request("Empty file"));
     }
 
-    let max = if buf.len() > 100 { 100 } else { buf.len() };
-    log::debug!("Binary data: {:#?}", &buf[..max]);
+    log::debug!("Binary data: {:#?}", &buf);
 
     log::debug!("Uploading to bucket");
     let s3 = S3Client::new(Region::UsEast1);
@@ -41,6 +45,7 @@ pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
         bucket: "minitube.videos".to_string(),
         key: id.clone(),
         body: Some(ByteStream::from(buf)),
+        content_type,
         ..Default::default()
     };
 
