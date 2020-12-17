@@ -1,11 +1,15 @@
+use std::collections::HashMap;
 use std::io::Read;
 
+use common_macros::hash_map;
 use json::Value;
 use lambda_http::http::Method;
 use lambda_http::{Body, IntoResponse, Request, Response};
 use multipart::server::Multipart;
-use rusoto_cloudsearchdomain::{CloudSearchDomain, CloudSearchDomainClient, SearchRequest};
 use rusoto_core::{ByteStream, Region};
+use rusoto_dynamodb::{
+    AttributeValue, BatchGetItemInput, DynamoDb, DynamoDbClient, KeysAndAttributes,
+};
 use rusoto_lambda::{InvocationRequest, Lambda, LambdaClient};
 use rusoto_s3::{PutObjectRequest, S3Client, S3};
 use serde::Deserialize;
@@ -18,6 +22,7 @@ use crate::validate_request;
 pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::POST, "multipart/form-data", req);
 
+    log::info!("Uploading video to S3");
     log::debug!("Building http buffer");
     let http_buffer = build_http_buffer(req)?;
     log::debug!("Parsing multipart data");
@@ -29,18 +34,20 @@ pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
         field.data.read_to_end(&mut buf)?;
     }
 
-    log::debug!("Uploading data to S3 (bucket: videos)");
+    log::debug!("Uploading to bucket");
     let s3 = S3Client::new(Region::UsEast1);
     let id = generate_id();
 
     let input = PutObjectRequest {
-        bucket: "videos".to_string(),
+        bucket: "minitube.videos".to_string(),
         key: id.clone(),
         body: Some(ByteStream::from(buf)),
         ..Default::default()
     };
 
     s3.put_object(input).await?;
+    log::debug!("Finished upload!");
+
     let res = json! {{
         "video_id": id
     }};
@@ -51,6 +58,7 @@ pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
 pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::GET, req);
 
+    log::info!("Requesting thumbnail generation");
     let query = query_params(req.uri().query().unwrap_or(""));
     if !query.get("video_id").map_or(false, |v| is_valid_id(v)) {
         return Err(Error::invalid_request(
@@ -58,23 +66,24 @@ pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
         ));
     }
 
+    log::debug!("Invocating GenerateThumbnails lamda");
     let lambda = LambdaClient::new(Region::UsEast1);
-
     let payload = json! {{
         "video_id": query["video_id"]
     }};
 
+    log::debug!("Payload: {:#}", payload);
     let input = InvocationRequest {
-        function_name: "GenerateThumbnails".to_string(),
+        function_name: "GenerateThumbnailsLambda".to_string(),
         payload: Some(payload.to_string().into()),
         ..Default::default()
     };
 
-    let res = lambda.invoke(input).await?;
-    if let Some(err) = res.function_error {
+    let output = lambda.invoke(input).await?;
+    if let Some(err) = output.function_error {
         Err(Error::internal_error(format!("Function error: {}", err)))
     } else {
-        let payload = res
+        let payload = output
             .payload
             .ok_or_else(|| Error::internal_error("Received unexpected empty output from lambda"))?;
 
@@ -106,7 +115,7 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
     let id = input.video_id;
 
     let input = PutObjectRequest {
-        bucket: "thumbnails".to_string(),
+        bucket: "minitube.thumbnails".to_string(),
         key: id.clone(),
         body: Some(ByteStream::from(data)),
         ..Default::default()
@@ -129,14 +138,54 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
     }
 
     let query: String = query["q"].split(' ').collect();
+    let keys: Vec<_> = query
+        .split(' ')
+        .map(|l| {
+            hash_map! {
+                "Label".to_string() => AttributeValue {
+                    s: Some(l.to_string()),
+                    ..Default::default()
+                }
+            }
+        })
+        .collect();
 
-    let cs = CloudSearchDomainClient::new(Region::UsEast1);
-    let input = SearchRequest {
-        query,
+    let db = DynamoDbClient::new(Region::UsEast1);
+    let input = BatchGetItemInput {
+        request_items: hash_map! {
+            "Labels".to_string() => KeysAndAttributes {
+                keys,
+                ..Default::default()
+            }
+        },
         ..Default::default()
     };
 
-    let res = cs.search(input).await?;
+    let output = db.batch_get_item(input).await?;
+    let res = if let Some(responses) = output.responses {
+        if let Some(data) = responses.get("Labels") {
+            let simplified: Vec<_> = data
+                .iter()
+                .map(|m| {
+                    m.clone()
+                        .into_iter()
+                        .filter_map(|(k, v)| {
+                            let list = v.l?;
+                            let list: Vec<_> = list.into_iter().filter_map(|v| v.s).collect();
 
-    todo!()
+                            Some((k, list))
+                        })
+                        .collect::<HashMap<_, _>>()
+                })
+                .collect();
+
+            json::to_value(simplified)?
+        } else {
+            json! {{}}
+        }
+    } else {
+        json! {{}}
+    };
+
+    Ok(res.into_response())
 }
