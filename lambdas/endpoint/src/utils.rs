@@ -51,8 +51,8 @@ pub fn build_http_buffer(req: Request) -> Result<HttpBuffer, Error> {
         .flatten();
 
     match req.body() {
-        lambda_http::Body::Binary(buf) => Ok(HttpBuffer::with_buf(
-            buf.to_owned(),
+        lambda_http::Body::Text(buf) => Ok(HttpBuffer::with_buf(
+            buf.as_bytes().to_vec(),
             boundary.to_string(),
             content_len,
         )),
