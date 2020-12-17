@@ -8,12 +8,12 @@ use lambda_http::{lambda, Body, IntoResponse, Request, Response};
 use lambda_runtime::error::HandlerError;
 use lambda_runtime::Context;
 use log::LevelFilter;
-use tokio::runtime::Builder;
+use tokio::runtime::Runtime;
 
 use crate::error::Error;
 
 fn handler(req: Request, _: Context) -> Result<Response<Body>, HandlerError> {
-    let rt = Builder::new_current_thread().build().unwrap();
+    let mut rt = Runtime::new().unwrap();
 
     rt.block_on(async move {
         let res = match req.uri().path() {
