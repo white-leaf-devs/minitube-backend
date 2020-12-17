@@ -21,7 +21,7 @@ fn handler(req: Request, _: Context) -> Result<Response<Body>, HandlerError> {
             "/uploadVideo" => routes::upload_video(req).await,
             "/genThumbnails" => routes::gen_thumbnails(req).await,
             "/uploadThumbnail" => routes::upload_thumbnail(req).await,
-            "/searchLabels" => routes::search_labels(req).await,
+            "/search" => routes::search(req).await,
             invalid => Err(Error::invalid_route(invalid)),
         };
 
