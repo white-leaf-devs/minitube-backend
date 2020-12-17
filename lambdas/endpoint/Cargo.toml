@@ -1,12 +1,28 @@
 [package]
-name = "endpoint"
-version = "0.1.0"
 authors = ["Kevin Del Castillo <quebin31@gmail.com>"]
 edition = "2018"
+name = "endpoint"
+version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.35"
+chrono = "0.4.19"
+dotenv = "0.15.0"
+fern = {version = "0.6.0", features = ["colored"]}
 lambda_http = "0.1.1"
+lambda_runtime = "0.2.1"
+log = "0.4.11"
+multipart = {version = "0.17.0", default-features = false, features = ["mock", "server"]}
+nanoid = "0.3.0"
 rusoto_core = "0.45.0"
+rusoto_lambda = "0.45.0"
 rusoto_s3 = "0.45.0"
+serde = {version = "1.0.118", features = ["derive"]}
+serde_json = "1.0.60"
+thiserror = "1.0.22"
+tokio = {version = "0.3.6", features = ["rt"]}
+
+[dev-dependencies]
+common_macros = "0.1.1"
