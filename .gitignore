@@ -4,3 +4,11 @@
 *.gif
 *.mp4
 *.png
+
+**/.terraform/*
+
+*.tfstate
+*.tfstate.*
+crash.log
+
+*.tfvars
