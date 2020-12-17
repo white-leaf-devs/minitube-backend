@@ -1,2 +1,2 @@
 REGION := "us-east1"
-DOMAIN_NAME := "main"
+CS_DOMAIN_NAME := "main"
