@@ -5,7 +5,6 @@ use common_macros::hash_map;
 use json::Value;
 use lambda_http::http::Method;
 use lambda_http::{Body, IntoResponse, Request, Response};
-use multipart::server::Multipart;
 use rusoto_core::{ByteStream, Region};
 use rusoto_dynamodb::{
     AttributeValue, BatchGetItemInput, DynamoDb, DynamoDbClient, KeysAndAttributes,
@@ -16,23 +15,23 @@ use serde::Deserialize;
 use serde_json::{self as json, json};
 
 use crate::error::Error;
-use crate::utils::{build_http_buffer, generate_id, is_valid_id, query_params};
+use crate::utils::{generate_id, is_valid_id, parse_multipart, query_params};
 use crate::validate_request;
 
 pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::POST, "multipart/form-data", req);
 
     log::info!("Uploading video to S3");
-    log::debug!("Building http buffer");
-    let http_buffer = build_http_buffer(req)?;
     log::debug!("Parsing multipart data");
-    let mut multipart = Multipart::from_request(http_buffer.for_server())
-        .map_err(|_| Error::invalid_request("Invalid multipart request"))?;
+    let mut multipart = parse_multipart(req)?;
 
     let mut buf = Vec::new();
     while let Some(mut field) = multipart.read_entry()? {
         field.data.read_to_end(&mut buf)?;
     }
+
+    let max = if buf.len() > 100 { 100 } else { buf.len() };
+    log::debug!("Binary data: {:#?}", &buf[..max]);
 
     log::debug!("Uploading to bucket");
     let s3 = S3Client::new(Region::UsEast1);
