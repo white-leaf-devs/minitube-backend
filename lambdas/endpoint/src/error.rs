@@ -44,6 +44,12 @@ pub enum Error {
         #[from]
         source: json::Error,
     },
+
+    #[error("Base64 decoder error: {source}")]
+    Base64DecoderError {
+        #[from]
+        source: base64::DecodeError,
+    },
 }
 
 impl IntoResponse for Error {
