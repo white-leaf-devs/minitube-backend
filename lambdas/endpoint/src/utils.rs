@@ -27,6 +27,8 @@ pub fn get_boundary(content_type_value: &str) -> Option<&str> {
 }
 
 pub fn build_http_buffer(req: Request) -> Result<HttpBuffer, Error> {
+    log::debug!("{:#?}", req);
+
     let ct_value = req
         .headers()
         .get("Content-Type")
@@ -40,11 +42,13 @@ pub fn build_http_buffer(req: Request) -> Result<HttpBuffer, Error> {
     let content_len = req
         .headers()
         .get("Content-Length")
-        .ok_or_else(|| Error::invalid_request("Not found content-length header"))?
-        .to_str()
-        .map_err(|_| Error::invalid_request("Invalid content-length header value"))?
-        .parse::<u64>()
-        .ok();
+        .map(|val| {
+            val.to_str()
+                .map_err(|_| Error::invalid_request("Invalid content-length header value"))
+        })
+        .transpose()?
+        .map(|val| val.parse().ok())
+        .flatten();
 
     match req.body() {
         lambda_http::Body::Binary(buf) => Ok(HttpBuffer::with_buf(
