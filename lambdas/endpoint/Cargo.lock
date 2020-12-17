@@ -411,6 +411,7 @@ name = "endpoint"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.13.0",
  "chrono",
  "common_macros",
  "dotenv",
@@ -420,6 +421,7 @@ dependencies = [
  "log",
  "multipart",
  "nanoid",
+ "rusoto_cloudsearchdomain",
  "rusoto_core",
  "rusoto_lambda",
  "rusoto_s3",
@@ -1620,6 +1622,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3acd125665422973a33ac9d3dd2df85edad0f4ae9b00dafb1a05e43a9f5ef8e7"
 dependencies = [
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "rusoto_cloudsearchdomain"
+version = "0.45.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e59cacc84f1b0b686cefcecd32b49b24e18e00ab086a252ab0b8e9017f40688"
+dependencies = [
+ "async-trait",
+ "bytes 0.5.6",
+ "futures 0.3.8",
+ "rusoto_core",
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]

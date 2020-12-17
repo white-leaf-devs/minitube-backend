@@ -8,6 +8,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0.35"
+base64 = "0.13.0"
 chrono = "0.4.19"
 dotenv = "0.15.0"
 fern = {version = "0.6.0", features = ["colored"]}
@@ -16,6 +17,7 @@ lambda_runtime = "0.2.1"
 log = "0.4.11"
 multipart = {version = "0.17.0", default-features = false, features = ["mock", "server"]}
 nanoid = "0.3.0"
+rusoto_cloudsearchdomain = "0.45.0"
 rusoto_core = "0.45.0"
 rusoto_lambda = "0.45.0"
 rusoto_s3 = "0.45.0"
