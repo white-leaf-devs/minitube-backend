@@ -23,6 +23,69 @@ resource "aws_iam_role_policy_attachment" "lambda" {
   policy_arn = "arn:aws:iam::aws:policy/AWSLambdaFullAccess"
 }
 
+resource "aws_lambda_layer_version" "opencv" {
+  layer_name          = "OpenCVLayer"
+  s3_bucket           = aws_s3_bucket.code.id
+  s3_key              = aws_s3_bucket_object.opencv_layer.id
+  compatible_runtimes = ["python3.8"]
+}
+
+
+resource "aws_lambda_function" "generate_preview" {
+  package_type  = "Zip"
+  function_name = "GeneratePreviewLambda"
+  role          = aws_iam_role.lambda.arn
+  s3_bucket     = aws_s3_bucket.code.id
+  s3_key        = aws_s3_bucket_object.generate_preview.id
+  handler       = "main.lambda_handler"
+  runtime       = "python3.8"
+
+  layers = [
+    aws_lambda_layer_version.opencv.arn,
+    "arn:aws:lambda:us-east-1:770693421928:layer:Klayers-python38-Pillow:7"
+  ]
+}
+
+resource "aws_lambda_function" "generate_thumbnails" {
+  package_type  = "Zip"
+  function_name = "GenerateThumbnailsLambda"
+  role          = aws_iam_role.lambda.arn
+  s3_bucket     = aws_s3_bucket.code.id
+  s3_key        = aws_s3_bucket_object.generate_thumbnails.id
+  handler       = "main.lambda_handler"
+  runtime       = "python3.8"
+
+  layers = [
+    aws_lambda_layer_version.opencv.arn,
+  ]
+}
+
+resource "aws_s3_bucket_notification" "previews_notification" {
+  bucket = aws_s3_bucket.previews.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.generate_preview.arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "AWSLogs/"
+    filter_suffix       = ".log"
+  }
+
+  depends_on = [aws_lambda_permission.allow_bucket_previews]
+}
+
+resource "aws_s3_bucket_notification" "thumbnails_notification" {
+  bucket = aws_s3_bucket.thumbnails.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.generate_thumbnails.arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "AWSLogs/"
+    filter_suffix       = ".log"
+  }
+
+  depends_on = [aws_lambda_permission.allow_bucket_thumbnails]
+}
+
 resource "aws_lambda_function" "endpoint" {
   package_type  = "Image"
   image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/minitube-endpoint:0.2.0"
@@ -65,8 +128,24 @@ resource "aws_lambda_permission" "apigw" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.endpoint.function_name
   principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.endpoint.execution_arn}/*/*"
+}
 
-  source_arn = "${aws_api_gateway_rest_api.endpoint.execution_arn}/*/*"
+
+resource "aws_lambda_permission" "allow_bucket_previews" {
+  statement_id  = "AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.generate_preview.arn
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.previews.arn
+}
+
+resource "aws_lambda_permission" "allow_bucket_thumbnails" {
+  statement_id  = "AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.generate_thumbnails.arn
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.thumbnails.arn
 }
 
 output "endpoint_url" {
