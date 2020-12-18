@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::io::{Cursor, Read};
 
-use lambda_http::Request;
 use multipart::server::Multipart;
+use netlify_lambda_http::{Body, Request};
 
 use crate::error::Error;
 
@@ -41,7 +41,7 @@ pub fn parse_multipart(req: Request) -> Result<Multipart<impl Read>, Error> {
         .ok_or_else(|| Error::invalid_request("Invalid multipart header value"))?;
 
     match req.body() {
-        lambda_http::Body::Text(buf) => {
+        Body::Text(buf) => {
             let buf = buf.as_bytes().to_vec();
             let cursor = Cursor::new(buf);
             Ok(Multipart::with_body(cursor, boundary))

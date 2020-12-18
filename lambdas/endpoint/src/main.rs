@@ -2,36 +2,32 @@ pub mod error;
 pub mod routes;
 pub mod utils;
 
-use anyhow::Result as AnyResult;
 use fern::Dispatch;
-use lambda_http::{lambda, Body, IntoResponse, Request, Response};
-use lambda_runtime::error::HandlerError;
-use lambda_runtime::Context;
 use log::LevelFilter;
-use tokio::runtime::Runtime;
+use netlify_lambda::Context;
+use netlify_lambda_http::{Body, IntoResponse, Request, Response};
 
 use crate::error::Error;
 
-fn handler(req: Request, _: Context) -> Result<Response<Body>, HandlerError> {
-    let mut rt = Runtime::new().unwrap();
+type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-    rt.block_on(async move {
-        let res = match req.uri().path() {
-            "/uploadVideo" => routes::upload_video(req).await,
-            "/genThumbnails" => routes::gen_thumbnails(req).await,
-            "/uploadThumbnail" => routes::upload_thumbnail(req).await,
-            "/search" => routes::search(req).await,
-            invalid => Err(Error::invalid_route(invalid)),
-        };
+async fn handler(req: Request, _: Context) -> Result<Response<Body>, DynError> {
+    let res = match req.uri().path() {
+        "/uploadVideo" => routes::upload_video(req).await,
+        "/genThumbnails" => routes::gen_thumbnails(req).await,
+        "/uploadThumbnail" => routes::upload_thumbnail(req).await,
+        "/search" => routes::search(req).await,
+        invalid => Err(Error::invalid_route(invalid)),
+    };
 
-        Ok(match res {
-            Ok(res) => res,
-            Err(err) => err.into_response(),
-        })
+    Ok(match res {
+        Ok(res) => res,
+        Err(err) => err.into_response(),
     })
 }
 
-fn main() -> AnyResult<()> {
+#[tokio::main]
+async fn main() -> Result<(), DynError> {
     Dispatch::new()
         .level(LevelFilter::Info)
         .level_for("endpoint", LevelFilter::Debug)
@@ -52,7 +48,8 @@ fn main() -> AnyResult<()> {
         .apply()?;
 
     log::info!("Registering handler");
-    lambda!(handler);
+    netlify_lambda::run(netlify_lambda_http::handler(handler)).await?;
     log::info!("Handler registered");
+
     Ok(())
 }

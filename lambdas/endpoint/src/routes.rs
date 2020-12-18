@@ -3,8 +3,8 @@ use std::io::Read;
 
 use common_macros::hash_map;
 use json::Value;
-use lambda_http::http::Method;
-use lambda_http::{Body, IntoResponse, Request, Response};
+use netlify_lambda_http::http::Method;
+use netlify_lambda_http::{Body, IntoResponse, Request, Response};
 use rusoto_core::{ByteStream, Region};
 use rusoto_dynamodb::{
     AttributeValue, BatchGetItemInput, DynamoDb, DynamoDbClient, KeysAndAttributes,

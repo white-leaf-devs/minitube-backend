@@ -1,6 +1,5 @@
-use lambda_http::http::StatusCode;
-use lambda_http::{Body, IntoResponse, Response};
-use lambda_runtime::error::HandlerError;
+use netlify_lambda_http::http::StatusCode;
+use netlify_lambda_http::{Body, IntoResponse, Response};
 use rusoto_core::RusotoError;
 use serde_json::{self as json, json};
 use std::error::Error as StdError;
@@ -8,10 +7,6 @@ use std::fmt::Display;
 use std::io;
 use std::string::FromUtf8Error;
 use thiserror::Error;
-
-pub fn handler_error<E: StdError>(err: E) -> HandlerError {
-    err.to_string().as_str().into()
-}
 
 #[derive(Debug, Error)]
 pub enum Error {
