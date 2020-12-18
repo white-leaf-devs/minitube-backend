@@ -18,6 +18,7 @@ use crate::error::Error;
 use crate::utils::{generate_id, is_valid_id, parse_multipart, query_params};
 use crate::validate_request;
 
+/// Expects base64 encode contents
 pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::POST, "multipart/form-data", req);
 
@@ -27,15 +28,14 @@ pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
     let entry = multipart.into_entry().into_result()?;
 
     let mut buf = Vec::new();
-    let content_type;
     if let Some(mut entry) = entry {
-        content_type = entry.headers.content_type.map(|mime| mime.to_string());
         entry.data.read_to_end(&mut buf)?;
     } else {
-        return Err(Error::invalid_request("Empty file"));
+        return Err(Error::invalid_request("No contents"));
     }
 
-    log::debug!("Binary data: {:#?}", &buf);
+    log::debug!("Decoding base64 contents");
+    let buf = base64::decode(buf)?;
 
     log::debug!("Uploading to bucket");
     let s3 = S3Client::new(Region::UsEast1);
@@ -45,7 +45,7 @@ pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
         bucket: "minitube.videos".to_string(),
         key: id.clone(),
         body: Some(ByteStream::from(buf)),
-        content_type,
+
         ..Default::default()
     };
 
