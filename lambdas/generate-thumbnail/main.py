@@ -1,5 +1,15 @@
+import boto3
+import json
 import cv2
+import os
+import sys
+import uuid
+from urllib.parse import unquote_plus
 import base64
+
+s3_client = boto3.client('s3')
+
+
 
 def getThumbnails(video, total_frames, jumps=5):
     thumbnails = []
@@ -33,10 +43,31 @@ def buildThumbnails(in_filename, out_file_prefix):
         cv2.imwrite(filename, thum)
 
         with open(filename, 'rb') as image_file:
-            encoded_string = base64.b64encode(image_file.read())
+            encoded_string = str(base64.b64encode(image_file.read()))
             thumbnails_as_base64.append(encoded_string)
 
     return thumbnails_as_base64
 
-if __name__ == '__main__':
-    buildThumbnails('La dura vida de Rubius.mp4', 'nani')
+def lambda_handler(event, context):
+    for record in event['Records']:
+        bucket = record['s3']['bucket']['name']
+        key = unquote_plus(record['s3']['object']['key'])
+        tmpkey = key.replace('/', '')
+        
+        tmpkey_no_extension = os.path.splitext(tmpkey)[0]
+        
+        file_id = uuid.uuid4()
+        
+        download_path = '/tmp/{}{}'.format(file_id, tmpkey)
+        print(download_path)
+        s3_client.download_file(bucket, key, download_path)
+        
+        upload_path_prefix = '/tmp/thumb-{}'.format(tmpkey_no_extension)
+        print(upload_path_prefix)
+        
+        thumbnails = buildThumbnails(download_path, upload_path_prefix)
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps(thumbnails)
+        }
