@@ -28,6 +28,7 @@ pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
     let entry = multipart.into_entry().into_result()?;
 
     let mut buf = Vec::new();
+
     if let Some(mut entry) = entry {
         entry.data.read_to_end(&mut buf)?;
     } else {
@@ -45,7 +46,7 @@ pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
         bucket: "minitube.videos".to_string(),
         key: id.clone(),
         body: Some(ByteStream::from(buf)),
-
+        grant_read: Some(true),
         ..Default::default()
     };
 
