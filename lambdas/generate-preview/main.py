@@ -45,9 +45,9 @@ def lambda_handler(event, context):
         
         download_path = '/tmp/{}{}'.format(file_id, tmpkey)
         print(download_path)
-        upload_path = '/tmp/resized-{}.gif'.format(tmpkey_no_extension)
+        upload_path = '/tmp/preview-{}.gif'.format(tmpkey_no_extension)
         print(upload_path)
         s3_client.download_file(bucket, key, download_path)
         
         buildPreview(download_path, upload_path)
-        s3_client.upload_file(upload_path, '{}-resized'.format(bucket), f'{tmpkey_no_extension}.gif')
+        s3_client.upload_file(upload_path, 'minitube.preview', f'{tmpkey_no_extension}.gif')
