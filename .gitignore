@@ -13,3 +13,4 @@
 crash.log
 
 *.tfvars
+*.zip
