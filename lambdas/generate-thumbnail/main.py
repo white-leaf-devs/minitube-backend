@@ -1,5 +1,5 @@
 import cv2
-from PIL import Image
+import base64
 
 def getThumbnails(video, total_frames, jumps=5):
     thumbnails = []
@@ -12,9 +12,9 @@ def getThumbnails(video, total_frames, jumps=5):
         success, pixels = video.read()
 
         if counter in selected_frames:
-            img = Image.fromarray(pixels.astype('uint8'), 'RGB').resize((240,135))
+            img = cv2.resize(pixels, (240,135))
             thumbnails.append(img)
-
+        
         counter += 1
 
     return thumbnails
@@ -25,6 +25,18 @@ def buildThumbnails(in_filename, out_file_prefix):
 
     frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
     thumbnails = getThumbnails(video, frame_count)
+
+    thumbnails_as_base64 = []
+
+    for i,thum in enumerate(thumbnails):
+        filename = f'{out_file_prefix}_{i}.png'
+        cv2.imwrite(filename, thum)
+
+        with open(filename, 'rb') as image_file:
+            encoded_string = base64.b64encode(image_file.read())
+            thumbnails_as_base64.append(encoded_string)
+
+    return thumbnails_as_base64
 
 if __name__ == '__main__':
     buildThumbnails('La dura vida de Rubius.mp4', 'nani')
