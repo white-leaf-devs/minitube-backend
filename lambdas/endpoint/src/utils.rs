@@ -1,7 +1,8 @@
 use std::collections::HashMap;
+use std::io::{Cursor, Read};
 
 use lambda_http::Request;
-use multipart::mock::HttpBuffer;
+use multipart::server::Multipart;
 
 use crate::error::Error;
 
@@ -26,7 +27,9 @@ pub fn get_boundary(content_type_value: &str) -> Option<&str> {
     content_type_value.split(' ').nth(1)?.split('=').nth(1)
 }
 
-pub fn build_http_buffer(req: Request) -> Result<HttpBuffer, Error> {
+pub fn parse_multipart(req: Request) -> Result<Multipart<impl Read>, Error> {
+    log::debug!("{:#?}", req);
+
     let ct_value = req
         .headers()
         .get("Content-Type")
@@ -37,21 +40,12 @@ pub fn build_http_buffer(req: Request) -> Result<HttpBuffer, Error> {
     let boundary = get_boundary(ct_value)
         .ok_or_else(|| Error::invalid_request("Invalid multipart header value"))?;
 
-    let content_len = req
-        .headers()
-        .get("Content-Length")
-        .ok_or_else(|| Error::invalid_request("Not found content-length header"))?
-        .to_str()
-        .map_err(|_| Error::invalid_request("Invalid content-length header value"))?
-        .parse::<u64>()
-        .ok();
-
     match req.body() {
-        lambda_http::Body::Binary(buf) => Ok(HttpBuffer::with_buf(
-            buf.to_owned(),
-            boundary.to_string(),
-            content_len,
-        )),
+        lambda_http::Body::Text(buf) => {
+            let buf = buf.as_bytes().to_vec();
+            let cursor = Cursor::new(buf);
+            Ok(Multipart::with_body(cursor, boundary))
+        }
 
         _ => Err(Error::invalid_request("Invalid body")),
     }

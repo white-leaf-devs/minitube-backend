@@ -54,17 +54,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atty"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
-dependencies = [
- "hermit-abi",
- "libc",
- "winapi 0.3.9",
-]
-
-[[package]]
 name = "autocfg"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -221,17 +210,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
 dependencies = [
  "bitflags",
-]
-
-[[package]]
-name = "colored"
-version = "1.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4ffc801dacf156c5854b9df4f425a626539c3a6ef7893cc0c5084a23f0b6c59"
-dependencies = [
- "atty",
- "lazy_static",
- "winapi 0.3.9",
 ]
 
 [[package]]
@@ -408,7 +386,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "endpoint"
-version = "0.1.0"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
@@ -421,14 +399,14 @@ dependencies = [
  "log",
  "multipart",
  "nanoid",
- "rusoto_cloudsearchdomain",
  "rusoto_core",
+ "rusoto_dynamodb",
  "rusoto_lambda",
  "rusoto_s3",
  "serde",
  "serde_json",
  "thiserror",
- "tokio 0.3.6",
+ "tokio 0.2.24",
 ]
 
 [[package]]
@@ -459,7 +437,6 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c9a4820f0ccc8a7afd67c39a0f1a0f4b07ca1725164271a64939d7aeb9af065"
 dependencies = [
- "colored",
  "log",
 ]
 
@@ -1625,20 +1602,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rusoto_cloudsearchdomain"
-version = "0.45.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e59cacc84f1b0b686cefcecd32b49b24e18e00ab086a252ab0b8e9017f40688"
-dependencies = [
- "async-trait",
- "bytes 0.5.6",
- "futures 0.3.8",
- "rusoto_core",
- "serde",
- "serde_derive",
-]
-
-[[package]]
 name = "rusoto_core"
 version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1684,6 +1647,20 @@ dependencies = [
  "shlex",
  "tokio 0.2.24",
  "zeroize",
+]
+
+[[package]]
+name = "rusoto_dynamodb"
+version = "0.45.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a1473bb1c1dd54f61c5e150aec47bcbf4a992963dcc3c60e12be5af3245cefc"
+dependencies = [
+ "async-trait",
+ "bytes 0.5.6",
+ "futures 0.3.8",
+ "rusoto_core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2206,17 +2183,6 @@ dependencies = [
  "slab",
  "tokio-macros",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "tokio"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "720ba21c25078711bf456d607987d95bce90f7c3bea5abe1db587862e7a1e87c"
-dependencies = [
- "autocfg 1.0.1",
- "pin-project-lite 0.2.0",
- "slab",
 ]
 
 [[package]]

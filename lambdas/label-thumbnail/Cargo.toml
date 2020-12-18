@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 lambda_runtime = "0.2.1"
 rusoto_core = "0.45.0"
+rusoto_dynamodb = "0.45.0"
 rusoto_rekognition = "0.45.0"
