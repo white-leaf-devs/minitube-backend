@@ -49,25 +49,26 @@ def buildThumbnails(in_filename, out_file_prefix):
     return thumbnails_as_base64
 
 def lambda_handler(event, context):
-    for record in event['Records']:
-        bucket = record['s3']['bucket']['name']
-        key = unquote_plus(record['s3']['object']['key'])
-        tmpkey = key.replace('/', '')
+    bucket = 'minitube.videos'
+    key = event['video_id']
+
+    tmpkey = key.replace('/', '')
         
-        tmpkey_no_extension = os.path.splitext(tmpkey)[0]
+    tmpkey_no_extension = os.path.splitext(tmpkey)[0]
+    
+    file_id = uuid.uuid4()
+    
+    download_path = '/tmp/{}{}'.format(file_id, tmpkey)
+    print(download_path)
+    s3_client.download_file(bucket, key, download_path)
+    
+    upload_path_prefix = '/tmp/thumb-{}'.format(tmpkey_no_extension)
+    print(upload_path_prefix)
+    
+    thumbnails = buildThumbnails(download_path, upload_path_prefix)
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps(thumbnails)
+    }
         
-        file_id = uuid.uuid4()
-        
-        download_path = '/tmp/{}{}'.format(file_id, tmpkey)
-        print(download_path)
-        s3_client.download_file(bucket, key, download_path)
-        
-        upload_path_prefix = '/tmp/thumb-{}'.format(tmpkey_no_extension)
-        print(upload_path_prefix)
-        
-        thumbnails = buildThumbnails(download_path, upload_path_prefix)
-        
-        return {
-            'statusCode': 200,
-            'body': json.dumps(thumbnails)
-        }
