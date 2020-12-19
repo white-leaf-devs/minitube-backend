@@ -20,7 +20,7 @@ def get_thumbnails(video, total_frames, jumps=5):
     while success:
         success, pixels = video.read()
 
-        if counter in selected_frames:
+        if counter in selected_frames and success:
             img = cv2.resize(pixels, (240, 135))
             thumbnails.append(img)
 

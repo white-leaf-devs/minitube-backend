@@ -18,7 +18,7 @@ def get_frames(video, start_frame, number=30):
     while success and counter < start_frame+number:
         success, pixels = video.read()
 
-        if counter >= start_frame:
+        if counter >= start_frame and success:
             img = Image.fromarray(pixels.astype('uint8'),
                                   'RGB').resize((240, 135))
             frames.append(img)
