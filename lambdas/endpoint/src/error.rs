@@ -17,7 +17,7 @@ pub enum Error {
     RusotoError { info: String },
 
     #[error("Invalid request: {info}")]
-    InvalidRequest { info: String },
+    BadRequest { info: String },
 
     #[error("Internal error: {info}")]
     InternalError { info: String },
@@ -65,9 +65,9 @@ impl IntoResponse for Error {
                 (StatusCode::NOT_FOUND, json)
             }
 
-            Self::InvalidRequest { info } => {
+            Self::BadRequest { info } => {
                 let json = json! {{
-                    "error_type": "invalid_request",
+                    "error_type": "bad_request",
                     "info": info
                 }};
 
@@ -106,8 +106,8 @@ impl Error {
         }
     }
 
-    pub fn invalid_request<S: Into<String>>(info: S) -> Self {
-        Self::InvalidRequest { info: info.into() }
+    pub fn bad_request<S: Into<String>>(info: S) -> Self {
+        Self::BadRequest { info: info.into() }
     }
 
     pub fn internal_error<S: Into<String>>(info: S) -> Self {
