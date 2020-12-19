@@ -98,31 +98,49 @@ struct UploadThumbnail {
 pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::POST, "application/json", req);
 
-    let input: UploadThumbnail = if let Body::Text(json) = req.body() {
+    let body: UploadThumbnail = if let Body::Text(json) = req.body() {
         json::from_str(&json)?
     } else {
         return Err(Error::invalid_request("Invalid JSON body"));
     };
 
-    let data = base64::decode(input.thumbnail_data)?;
+    let data = base64::decode(body.thumbnail_data)?;
 
     let s3 = S3Client::new(Region::UsEast1);
-    let id = input.video_id;
-
     let input = PutObjectRequest {
         bucket: "minitube.thumbnails".to_string(),
-        key: id.clone(),
+        key: format!("{}.png", body.video_id.clone()),
         body: Some(ByteStream::from(data)),
         acl: Some("public-read".to_string()),
         ..Default::default()
     };
 
     s3.put_object(input).await?;
-    let res = json! {{
-        "video_id": id
+
+    let lambda = LambdaClient::new(Region::UsEast1);
+    let payload = json! {{
+        "video_id": body.video_id,
+        "bucket": "minitube.thumbnails"
     }};
 
-    Ok(res.into_response())
+    let input = InvocationRequest {
+        function_name: "LabelThumbnailLambda".to_string(),
+        payload: Some(payload.to_string().into()),
+        ..Default::default()
+    };
+
+    let output = lambda.invoke(input).await?;
+    if let Some(err) = output.function_error {
+        Err(Error::internal_error(format!("Function error: {}", err)))
+    } else {
+        let payload = output
+            .payload
+            .ok_or_else(|| Error::internal_error("Received unexpected empty output from lambda"))?;
+
+        let contents = String::from_utf8(payload.to_vec())?;
+        let json: Value = json::from_str(&contents)?;
+        Ok(json.into_response())
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
