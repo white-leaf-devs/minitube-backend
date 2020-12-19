@@ -13,7 +13,7 @@ type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 async fn handler(req: Request, _: Context) -> Result<Response<Body>, DynError> {
     let res = match req.uri().path() {
-        "/uploadVideo" => routes::upload_video(req).await,
+        "/requestUpload" => routes::request_upload(req).await,
         "/genThumbnails" => routes::gen_thumbnails(req).await,
         "/uploadThumbnail" => routes::upload_thumbnail(req).await,
         "/search" => routes::search(req).await,

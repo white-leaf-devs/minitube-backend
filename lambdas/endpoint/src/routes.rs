@@ -1,59 +1,50 @@
 use std::collections::HashMap;
-use std::io::Read;
+use std::time::Duration;
 
 use common_macros::hash_map;
 use json::Value;
 use netlify_lambda_http::http::Method;
 use netlify_lambda_http::{Body, IntoResponse, Request, Response};
 use rusoto_core::{ByteStream, Region};
+use rusoto_credential::{ChainProvider, ProvideAwsCredentials};
 use rusoto_dynamodb::{
     AttributeValue, BatchGetItemInput, DynamoDb, DynamoDbClient, KeysAndAttributes,
 };
 use rusoto_lambda::{InvocationRequest, Lambda, LambdaClient};
+use rusoto_s3::util::{PreSignedRequest, PreSignedRequestOption};
 use rusoto_s3::{PutObjectRequest, S3Client, S3};
 use serde::Deserialize;
 use serde_json::{self as json, json};
 
 use crate::error::Error;
-use crate::utils::{generate_id, is_valid_id, parse_multipart, query_params};
+use crate::utils::{generate_id, is_valid_id, query_params};
 use crate::validate_request;
 
 /// Expects base64 encode contents
-pub async fn upload_video(req: Request) -> Result<Response<Body>, Error> {
-    validate_request!(Method::POST, "multipart/form-data", req);
+pub async fn request_upload(req: Request) -> Result<Response<Body>, Error> {
+    validate_request!(Method::GET, req);
 
-    log::info!("Uploading video to S3");
-    log::debug!("Parsing multipart data");
-    let multipart = parse_multipart(req)?;
-    let entry = multipart.into_entry().into_result()?;
-
-    let mut buf = Vec::new();
-    if let Some(mut entry) = entry {
-        entry.data.read_to_end(&mut buf)?;
-    } else {
-        return Err(Error::invalid_request("No contents"));
-    }
-
-    log::debug!("Decoding base64 contents");
-    let buf = base64::decode(buf)?;
-
-    log::debug!("Uploading to bucket");
-    let s3 = S3Client::new(Region::UsEast1);
+    log::debug!("Generating video id");
     let id = generate_id();
 
     let input = PutObjectRequest {
         bucket: "minitube.videos".to_string(),
         key: id.clone(),
-        body: Some(ByteStream::from(buf)),
         acl: Some("public-read".to_string()),
         ..Default::default()
     };
 
-    s3.put_object(input).await?;
-    log::debug!("Finished upload!");
+    let mut provider = ChainProvider::new();
+    provider.set_timeout(Duration::from_secs(600));
+    let credentials = provider.credentials().await?;
+    let options = PreSignedRequestOption {
+        expires_in: Duration::from_secs(600),
+    };
 
+    let presigned_url = input.get_presigned_url(&Region::UsEast1, &credentials, &options);
     let res = json! {{
-        "video_id": id
+        "video_id": id,
+        "presigned_url": presigned_url,
     }};
 
     Ok(res.into_response())

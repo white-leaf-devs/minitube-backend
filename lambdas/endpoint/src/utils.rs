@@ -1,10 +1,4 @@
 use std::collections::HashMap;
-use std::io::{Cursor, Read};
-
-use multipart::server::Multipart;
-use netlify_lambda_http::{Body, Request};
-
-use crate::error::Error;
 
 pub const ALPHABET: [char; 63] = [
     '_', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
@@ -21,34 +15,6 @@ pub fn generate_id() -> String {
 
 pub fn is_valid_id(id: &str) -> bool {
     id.len() == ID_LEN && id.chars().all(|c| ALPHABET.contains(&c))
-}
-
-pub fn get_boundary(content_type_value: &str) -> Option<&str> {
-    content_type_value.split(' ').nth(1)?.split('=').nth(1)
-}
-
-pub fn parse_multipart(req: Request) -> Result<Multipart<impl Read>, Error> {
-    log::debug!("{:#?}", req);
-
-    let ct_value = req
-        .headers()
-        .get("Content-Type")
-        .ok_or_else(|| Error::invalid_request("Not found content-type header"))?
-        .to_str()
-        .map_err(|_| Error::invalid_request("Invalid content-type header value"))?;
-
-    let boundary = get_boundary(ct_value)
-        .ok_or_else(|| Error::invalid_request("Invalid multipart header value"))?;
-
-    match req.body() {
-        Body::Text(buf) => {
-            let buf = buf.as_bytes().to_vec();
-            let cursor = Cursor::new(buf);
-            Ok(Multipart::with_body(cursor, boundary))
-        }
-
-        _ => Err(Error::invalid_request("Invalid body")),
-    }
 }
 
 pub fn query_params<'a>(query: &'a str) -> HashMap<&'a str, &'a str> {
@@ -105,18 +71,8 @@ macro_rules! validate_request {
 
 #[cfg(test)]
 mod tests {
+    use super::query_params;
     use common_macros::hash_map;
-
-    use super::{get_boundary, query_params};
-
-    #[test]
-    fn boundary_extraction() {
-        let header_value = "multipart/form-data; boundary=2a8ae6ad-f4ad-4d9a-a92c-6d217011fe0f";
-        assert_eq!(
-            Some("2a8ae6ad-f4ad-4d9a-a92c-6d217011fe0f"),
-            get_boundary(header_value)
-        );
-    }
 
     #[test]
     fn single_query_params() {
