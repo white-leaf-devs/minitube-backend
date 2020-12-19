@@ -1,5 +1,6 @@
 mod data;
 
+use anyhow::anyhow;
 use common_macros::hash_map;
 use netlify_lambda::{lambda, Context};
 use rusoto_core::Region;
@@ -12,11 +13,17 @@ use crate::data::{Labels, Records};
 
 type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
+fn only_id(key: &str) -> Option<&str> {
+    key.split('.').next()
+}
+
 #[lambda]
 #[tokio::main]
 async fn main(event: Records, _: Context) -> Result<Labels, DynError> {
     let record = event.records[0].clone();
-    let video_id = record.s3.object.key.clone();
+    let video_id = only_id(&record.s3.object.key)
+        .map(|s| s.to_owned())
+        .ok_or_else(|| anyhow!("Invalid object key"))?;
 
     let rekognition = RekognitionClient::new(Region::UsEast1);
     let input = DetectLabelsRequest {
