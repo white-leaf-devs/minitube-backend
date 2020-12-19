@@ -45,6 +45,12 @@ pub enum Error {
         #[from]
         source: base64::DecodeError,
     },
+
+    #[error("AWS credentials error: {source}")]
+    CredentialsError {
+        #[from]
+        source: rusoto_credential::CredentialsError,
+    },
 }
 
 impl IntoResponse for Error {
