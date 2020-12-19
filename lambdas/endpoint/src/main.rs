@@ -12,6 +12,8 @@ use crate::error::Error;
 type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 async fn handler(req: Request, _: Context) -> Result<Response<Body>, DynError> {
+    log::debug!("Processing request: {:#?}", req);
+
     let res = match req.uri().path() {
         "/requestUpload" => routes::request_upload(req).await,
         "/genThumbnails" => routes::gen_thumbnails(req).await,
