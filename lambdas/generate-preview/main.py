@@ -19,8 +19,7 @@ def get_frames(video, start_frame, number=30):
         success, pixels = video.read()
 
         if counter >= start_frame and success:
-            img = Image.fromarray(pixels.astype('uint8'),
-                                  'RGB').resize((240, 135))
+            img = cv2.resize(pixels, (240, 135))
             frames.append(img)
 
         counter += 1
@@ -28,11 +27,20 @@ def get_frames(video, start_frame, number=30):
     return frames
 
 
-def build_preview(in_filename, out_filename):
+def build_preview(in_filename, out_filename, out_file_prefix):
     video = cv2.VideoCapture(in_filename)
 
     frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    frames = get_frames(video, frame_count/2)
+    resized_frames = get_frames(video, frame_count/2)
+
+    frames = []
+
+    for i, frame in enumerate(resized_frames):
+        filename = f'{out_file_prefix}_{i}.png'
+        cv2.imwrite(filename, frame)
+
+        im = Image.open(filename)
+        frames.append(im)
 
     frames[0].save(out_filename, save_all=True,
                    append_images=frames[1:], optimize=True)
@@ -54,6 +62,8 @@ def lambda_handler(event, context):
         print(upload_path)
         s3_client.download_file(bucket, key, download_path)
 
-        build_preview(download_path, upload_path)
+        prefix = f'/tmp/{tmpkey_no_extension}_frame'
+
+        build_preview(download_path, upload_path, prefix)
         s3_client.upload_file(upload_path, 'minitube.previews',
                               f'{tmpkey_no_extension}.gif', ExtraArgs={'ACL': 'public-read'})
