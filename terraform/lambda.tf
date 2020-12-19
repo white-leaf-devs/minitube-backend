@@ -70,14 +70,14 @@ resource "aws_lambda_function" "endpoint" {
 }
 
 resource "aws_s3_bucket_notification" "previews_notification" {
-  bucket = aws_s3_bucket.previews.id
+  bucket = aws_s3_bucket.videos.id
 
   lambda_function {
     lambda_function_arn = aws_lambda_function.generate_preview.arn
     events              = ["s3:ObjectCreated:*"]
   }
 
-  depends_on = [aws_lambda_permission.allow_bucket_previews]
+  depends_on = [aws_lambda_permission.allow_bucket_videos]
 }
 
 resource "aws_api_gateway_integration" "endpoint" {
@@ -119,12 +119,12 @@ resource "aws_lambda_permission" "apigw" {
 }
 
 
-resource "aws_lambda_permission" "allow_bucket_previews" {
+resource "aws_lambda_permission" "allow_bucket_videos" {
   statement_id  = "AllowExecutionFromS3Bucket"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.generate_preview.arn
+  function_name = aws_lambda_function.generate_preview.function_name
   principal     = "s3.amazonaws.com"
-  source_arn    = aws_s3_bucket.previews.arn
+  source_arn    = aws_s3_bucket.videos.arn
 }
 
 output "endpoint_url" {
