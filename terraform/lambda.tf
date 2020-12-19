@@ -43,7 +43,7 @@ resource "aws_lambda_function" "label_thumbnail" {
   role          = aws_iam_role.lambda.arn
 }
 
-resource "aws_s3_bucket_notification" "previews_notification" {
+resource "aws_s3_bucket_notification" "videos" {
   bucket = aws_s3_bucket.videos.id
 
   lambda_function {
