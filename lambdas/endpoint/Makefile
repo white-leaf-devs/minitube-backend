@@ -11,4 +11,3 @@ tag:
 
 push:
 	@docker push $(registry)/$(name):$(version)
-

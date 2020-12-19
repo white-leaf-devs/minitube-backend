@@ -30,7 +30,6 @@ resource "aws_lambda_layer_version" "opencv" {
   compatible_runtimes = ["python3.8"]
 }
 
-
 resource "aws_lambda_function" "generate_preview" {
   package_type  = "Zip"
   function_name = "GeneratePreviewLambda"
@@ -69,6 +68,13 @@ resource "aws_lambda_function" "endpoint" {
   role          = aws_iam_role.lambda.arn
 }
 
+resource "aws_lambda_function" "label_thumbnail" {
+  package_type  = "Image"
+  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/label-thumbnail:0.1.0"
+  function_name = "LabelThumbnailLambda"
+  role          = aws_iam_role.lambda.arn
+}
+
 resource "aws_s3_bucket_notification" "previews_notification" {
   bucket = aws_s3_bucket.videos.id
 
@@ -78,6 +84,17 @@ resource "aws_s3_bucket_notification" "previews_notification" {
   }
 
   depends_on = [aws_lambda_permission.allow_bucket_videos]
+}
+
+resource "aws_s3_bucket_notification" "thumbnails_notification" {
+  bucket = aws_s3_bucket.thumbnails.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.label_thumbnail.arn
+    events              = ["s3:ObjectCreated:*"]
+  }
+
+  depends_on = [aws_lambda_permission.allow_bucket_thumbnails]
 }
 
 resource "aws_api_gateway_integration" "endpoint" {
@@ -125,6 +142,14 @@ resource "aws_lambda_permission" "allow_bucket_videos" {
   function_name = aws_lambda_function.generate_preview.function_name
   principal     = "s3.amazonaws.com"
   source_arn    = aws_s3_bucket.videos.arn
+}
+
+resource "aws_lambda_permission" "allow_bucket_thumbnails" {
+  statement_id  = "AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.label_thumbnail.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.thumbnails.arn
 }
 
 output "endpoint_url" {
