@@ -64,7 +64,7 @@ resource "aws_lambda_function" "generate_thumbnails" {
 
 resource "aws_lambda_function" "endpoint" {
   package_type  = "Image"
-  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/minitube-endpoint:0.2.1"
+  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/minitube-endpoint:0.3.0"
   function_name = "EndpointLambda"
   role          = aws_iam_role.lambda.arn
 }
