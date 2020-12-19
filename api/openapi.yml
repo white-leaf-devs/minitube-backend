@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Minitube API
-  version: 1.1.0
+  version: 1.1.1
   contact:
     name: Kevin Del Castillo Ramirez
     email: quebin31@gmail.com
@@ -12,8 +12,14 @@ paths:
     get:
       summary: Request a presigned URL and video id.
       description: |
-        Generates and returns a new video id and presigned URL to put the video on
-        the corresponding S3 bucket.
+        Generates and returns a new video id and a presigned URL to put the video on
+        the corresponding S3 bucket. In order to upload the video using the presigned URL 
+        you must sent a request with the following requisites:
+
+        - Raw video data (binary) must be included in the request body.
+        - HTTP method must be `PUT`.
+        - Header `X-Amz-ACL` must be `public-read`.
+        - Header `Content-Type` must be `video/mp4`, therefore only mp4 videos are accepted.
       operationId: requestUpload
       responses:
         "200":
@@ -24,13 +30,16 @@ paths:
                 $ref: "#/components/schemas/RequestUpload"
         "500":
           $ref: "#/components/responses/InternalServerError"
+
   "/genThumbnails":
     description: |
       Operations related to thumbnail generation.
     get:
-      summary: Start thumbnail generation.
+      summary: Request thumbnail generation.
       description: |
-        Requests thumbnail generation for this video.
+        Requests thumbnail generation for the specified video id, the result 
+        contains an array where each item is a standard `base64` encoded string 
+        containing the thumbnail data, thumbnails are `image/png`.
       operationId: genThumbnails
       parameters:
         - in: query
@@ -56,7 +65,8 @@ paths:
     post:
       summary: Upload thumbnail for video.
       description: |
-        Upload a thumbnail for the specified video id.
+        Upload a thumbnail for the specified video id, the thumbnail data (which
+        should be `image/png`) must be encoded with `base64`.
       operationId: uploadThumbnail
       requestBody:
         description: Video id and thumbnail data.
@@ -83,7 +93,7 @@ paths:
     get:
       summary: Search videos with maching labels.
       description: |
-        Search all the videos with the given labels.
+        Search videos with matching labels specified in the query parameter `q`.
       operationId: search
       parameters:
         - in: query
