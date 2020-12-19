@@ -20,17 +20,17 @@ use crate::error::Error;
 use crate::utils::{generate_id, is_valid_id, query_params};
 use crate::validate_request;
 
-/// Expects base64 encode contents
 pub async fn request_upload(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::GET, req);
 
-    log::debug!("Generating video id");
     let id = generate_id();
+    log::debug!("Generated video id: {}", id);
 
     let input = PutObjectRequest {
         bucket: "minitube.videos".to_string(),
-        key: id.clone(),
+        key: format!("{}.mp4", id),
         acl: Some("public-read".to_string()),
+        content_type: Some("video/mp4".to_string()),
         ..Default::default()
     };
 
@@ -42,12 +42,12 @@ pub async fn request_upload(req: Request) -> Result<Response<Body>, Error> {
     };
 
     let presigned_url = input.get_presigned_url(&Region::UsEast1, &credentials, &options);
-    let res = json! {{
+    let json_output = json!({
         "video_id": id,
-        "presigned_url": presigned_url,
-    }};
+        "presigned_url": presigned_url
+    });
 
-    Ok(res.into_response())
+    Ok(json_output.into_response())
 }
 
 pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
@@ -56,18 +56,17 @@ pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
     log::info!("Requesting thumbnail generation");
     let query = query_params(req.uri().query().unwrap_or(""));
     if !query.get("video_id").map_or(false, |v| is_valid_id(v)) {
-        return Err(Error::invalid_request(
+        return Err(Error::bad_request(
             "Invalid or not present `video_id` query param",
         ));
     }
 
     log::debug!("Invocating GenerateThumbnails lamda");
     let lambda = LambdaClient::new(Region::UsEast1);
-    let payload = json! {{
+    let payload = json!({
         "video_id": query["video_id"]
-    }};
+    });
 
-    log::debug!("Payload: {:#}", payload);
     let input = InvocationRequest {
         function_name: "GenerateThumbnailsLambda".to_string(),
         payload: Some(payload.to_string().into()),
@@ -83,8 +82,8 @@ pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
             .ok_or_else(|| Error::internal_error("Received unexpected empty output from lambda"))?;
 
         let contents = String::from_utf8(payload.to_vec())?;
-        let json: Value = json::from_str(&contents)?;
-        Ok(json.into_response())
+        let json_output: Value = json::from_str(&contents)?;
+        Ok(json_output.into_response())
     }
 }
 
@@ -99,29 +98,30 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::POST, "application/json", req);
 
     let body: UploadThumbnail = if let Body::Text(json) = req.body() {
-        json::from_str(&json)?
+        json::from_str(&json).map_err(|e| Error::bad_request(e.to_string()))?
     } else {
-        return Err(Error::invalid_request("Invalid JSON body"));
+        return Err(Error::bad_request("Invalid JSON body"));
     };
 
-    let data = base64::decode(body.thumbnail_data)?;
+    let decoded_data =
+        base64::decode(body.thumbnail_data).map_err(|e| Error::bad_request(e.to_string()))?;
 
     let s3 = S3Client::new(Region::UsEast1);
     let input = PutObjectRequest {
         bucket: "minitube.thumbnails".to_string(),
         key: format!("{}.png", body.video_id.clone()),
-        body: Some(ByteStream::from(data)),
+        body: Some(ByteStream::from(decoded_data)),
         acl: Some("public-read".to_string()),
+        content_type: Some("image/png".to_string()),
         ..Default::default()
     };
 
     s3.put_object(input).await?;
-
     let lambda = LambdaClient::new(Region::UsEast1);
-    let payload = json! {{
+    let payload = json!({
         "video_id": body.video_id,
         "bucket": "minitube.thumbnails"
-    }};
+    });
 
     let input = InvocationRequest {
         function_name: "LabelThumbnailLambda".to_string(),
@@ -138,8 +138,8 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
             .ok_or_else(|| Error::internal_error("Received unexpected empty output from lambda"))?;
 
         let contents = String::from_utf8(payload.to_vec())?;
-        let json: Value = json::from_str(&contents)?;
-        Ok(json.into_response())
+        let json_output: Value = json::from_str(&contents)?;
+        Ok(json_output.into_response())
     }
 }
 
@@ -152,16 +152,12 @@ struct VideoInfo {
 }
 
 impl VideoInfo {
+    const S3_URL: &'static str = "https://s3.amazonaws.com";
+
     fn new(labels: Vec<String>, video_id: &str) -> Self {
-        let video_url = format!("https://s3.amazonaws.com/minitube.videos/{}", video_id);
-        let preview_url = format!(
-            "https://s3.amazonaws.com/minitube.previews/{}.gif",
-            video_id
-        );
-        let thumbnail_url = format!(
-            "https://s3.amazonaws.com/minitube.thumbnails/{}.png",
-            video_id
-        );
+        let video_url = format!("{}/minitube.videos/{}", Self::S3_URL, video_id);
+        let preview_url = format!("{}/minitube.previews/{}.gif", Self::S3_URL, video_id);
+        let thumbnail_url = format!("{}/minitube.thumbnails/{}.png", Self::S3_URL, video_id);
 
         Self {
             labels,
@@ -177,7 +173,7 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
 
     let query = query_params(req.uri().query().unwrap_or(""));
     if !query.contains_key("q") {
-        return Err(Error::invalid_request("Not present `q` query param"));
+        return Err(Error::bad_request("Not present `q` query param"));
     }
 
     let query: String = query["q"].split(' ').collect();
@@ -233,13 +229,9 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
             .map(|(video_id, labels)| VideoInfo::new(labels, &video_id))
             .collect();
 
-        json! {{
-            "videos": videos
-        }}
+        json!({ "videos": videos })
     } else {
-        json! {{
-            "videos": Vec::<VideoInfo>::new()
-        }}
+        json!({ "videos": Vec::<VideoInfo>::new() })
     };
 
     Ok(json.into_response())
