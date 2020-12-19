@@ -69,7 +69,7 @@ pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
 
     log::debug!("Invocating GenerateThumbnails lamda");
     let lambda = LambdaClient::new(Region::UsEast1);
-    let payload = json!({ "video_id": video_id });
+    let payload = json!({ "video_id": format!("{}.mp4", video_id) });
 
     let input = InvocationRequest {
         function_name: "GenerateThumbnailsLambda".to_string(),
@@ -117,7 +117,7 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
     let s3 = S3Client::new(Region::UsEast1);
     let input = PutObjectRequest {
         bucket: "minitube.thumbnails".to_string(),
-        key: format!("{}.png", body.video_id.clone()),
+        key: format!("{}.png", body.video_id),
         body: Some(ByteStream::from(decoded_data)),
         acl: Some("public-read".to_string()),
         content_type: Some("image/png".to_string()),
@@ -127,7 +127,7 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
     s3.put_object(input).await?;
     let lambda = LambdaClient::new(Region::UsEast1);
     let payload = json!({
-        "video_id": body.video_id,
+        "video_id": format!("{}.png", body.video_id),
         "bucket": "minitube.thumbnails"
     });
 
@@ -163,7 +163,7 @@ impl VideoInfo {
     const S3_URL: &'static str = "https://s3.amazonaws.com";
 
     fn new(labels: Vec<String>, video_id: &str) -> Self {
-        let video_url = format!("{}/minitube.videos/{}", Self::S3_URL, video_id);
+        let video_url = format!("{}/minitube.videos/{}.mp4", Self::S3_URL, video_id);
         let preview_url = format!("{}/minitube.previews/{}.gif", Self::S3_URL, video_id);
         let thumbnail_url = format!("{}/minitube.thumbnails/{}.png", Self::S3_URL, video_id);
 
