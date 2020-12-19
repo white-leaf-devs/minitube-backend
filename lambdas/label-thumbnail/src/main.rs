@@ -1,6 +1,5 @@
 mod data;
 
-use anyhow::anyhow;
 use common_macros::hash_map;
 use netlify_lambda::{lambda, Context};
 use rusoto_core::Region;
@@ -9,28 +8,19 @@ use rusoto_dynamodb::{
 };
 use rusoto_rekognition::{DetectLabelsRequest, Image, Rekognition, RekognitionClient, S3Object};
 
-use crate::data::{Labels, Records};
+use crate::data::{Labels, ThumbnailEvent};
 
 type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-fn only_id(key: &str) -> Option<&str> {
-    key.split('.').next()
-}
-
 #[lambda]
 #[tokio::main]
-async fn main(event: Records, _: Context) -> Result<Labels, DynError> {
-    let record = event.records[0].clone();
-    let video_id = only_id(&record.s3.object.key)
-        .map(|s| s.to_owned())
-        .ok_or_else(|| anyhow!("Invalid object key"))?;
-
+async fn main(event: ThumbnailEvent, _: Context) -> Result<Labels, DynError> {
     let rekognition = RekognitionClient::new(Region::UsEast1);
     let input = DetectLabelsRequest {
         image: Image {
             s3_object: Some(S3Object {
-                name: Some(record.s3.object.key),
-                bucket: Some(record.s3.bucket.name),
+                name: Some(format!("{}.png", event.video_id)),
+                bucket: Some(event.bucket.clone()),
                 ..Default::default()
             }),
             ..Default::default()
@@ -61,7 +51,7 @@ async fn main(event: Records, _: Context) -> Result<Labels, DynError> {
                     update_expression: "ADD Videos :video".to_string(),
                     expression_attribute_values: Some(hash_map! {
                         ":video".to_string() => AttributeValue {
-                            ss: Some(vec![ video_id.clone() ]),
+                            ss: Some(vec![ event.video_id.clone() ]),
                             ..Default::default()
                         }
                     }),
