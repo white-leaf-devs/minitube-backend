@@ -39,6 +39,7 @@ resource "aws_lambda_function" "generate_preview" {
   s3_key        = aws_s3_bucket_object.generate_preview.id
   handler       = "main.lambda_handler"
   runtime       = "python3.8"
+  timeout       = 180
 
   layers = [
     aws_lambda_layer_version.opencv.arn,
@@ -54,10 +55,18 @@ resource "aws_lambda_function" "generate_thumbnails" {
   s3_key        = aws_s3_bucket_object.generate_thumbnails.id
   handler       = "main.lambda_handler"
   runtime       = "python3.8"
+  timeout       = 180
 
   layers = [
     aws_lambda_layer_version.opencv.arn,
   ]
+}
+
+resource "aws_lambda_function" "endpoint" {
+  package_type  = "Image"
+  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/minitube-endpoint:0.2.1"
+  function_name = "EndpointLambda"
+  role          = aws_iam_role.lambda.arn
 }
 
 resource "aws_s3_bucket_notification" "previews_notification" {
@@ -66,31 +75,9 @@ resource "aws_s3_bucket_notification" "previews_notification" {
   lambda_function {
     lambda_function_arn = aws_lambda_function.generate_preview.arn
     events              = ["s3:ObjectCreated:*"]
-    filter_prefix       = "AWSLogs/"
-    filter_suffix       = ".log"
   }
 
   depends_on = [aws_lambda_permission.allow_bucket_previews]
-}
-
-resource "aws_s3_bucket_notification" "thumbnails_notification" {
-  bucket = aws_s3_bucket.thumbnails.id
-
-  lambda_function {
-    lambda_function_arn = aws_lambda_function.generate_thumbnails.arn
-    events              = ["s3:ObjectCreated:*"]
-    filter_prefix       = "AWSLogs/"
-    filter_suffix       = ".log"
-  }
-
-  depends_on = [aws_lambda_permission.allow_bucket_thumbnails]
-}
-
-resource "aws_lambda_function" "endpoint" {
-  package_type  = "Image"
-  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/minitube-endpoint:0.2.0"
-  function_name = "EndpointLambda"
-  role          = aws_iam_role.lambda.arn
 }
 
 resource "aws_api_gateway_integration" "endpoint" {
@@ -138,14 +125,6 @@ resource "aws_lambda_permission" "allow_bucket_previews" {
   function_name = aws_lambda_function.generate_preview.arn
   principal     = "s3.amazonaws.com"
   source_arn    = aws_s3_bucket.previews.arn
-}
-
-resource "aws_lambda_permission" "allow_bucket_thumbnails" {
-  statement_id  = "AllowExecutionFromS3Bucket"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.generate_thumbnails.arn
-  principal     = "s3.amazonaws.com"
-  source_arn    = aws_s3_bucket.thumbnails.arn
 }
 
 output "endpoint_url" {
