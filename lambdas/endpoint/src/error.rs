@@ -59,7 +59,7 @@ impl IntoResponse for Error {
             Self::InvalidRoute { route } => {
                 let json = json! {{
                     "error_type": "invalid_route",
-                    "route": route
+                    "info": format!("route={}", route)
                 }};
 
                 (StatusCode::NOT_FOUND, json)
