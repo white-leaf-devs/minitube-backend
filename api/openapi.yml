@@ -71,10 +71,7 @@ paths:
           content:
             application/json:
               schema:
-                properties:
-                  video_id:
-                    description: Given video id.
-                    type: string
+                $ref: "#/components/schemas/UploadThumbnailResult"
         "400":
           $ref: "#/components/responses/InvalidRequestError"
         "500":
@@ -138,6 +135,17 @@ components:
           description: Thumbnail data encoded in `base64`
           type: string
           format: base64
+
+    UploadThumbnailResult:
+      properties:
+        video_id:
+          description: Selected video id.
+          type: string
+        labels:
+          description: Thumbnail labels.
+          type: array
+          items:
+            type: string
 
     SearchResult:
       properties:
