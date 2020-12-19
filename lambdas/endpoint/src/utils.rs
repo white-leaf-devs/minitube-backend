@@ -37,7 +37,7 @@ macro_rules! validate_request {
         use $crate::error::Error;
 
         if !matches!($req.method(), &$method) {
-            return Err(Error::invalid_request(format!(
+            return Err(Error::bad_request(format!(
                 "Invalid method: {}",
                 $req.method()
             )));
@@ -50,7 +50,7 @@ macro_rules! validate_request {
             .unwrap_or(false);
 
         if !valid_content {
-            return Err(Error::invalid_request(format!(
+            return Err(Error::bad_request(format!(
                 "Invalid content, expecting {}",
                 $content_type
             )));
@@ -61,7 +61,7 @@ macro_rules! validate_request {
         use $crate::error::Error;
 
         if !matches!($req.method(), &$method) {
-            return Err(Error::invalid_request(format!(
+            return Err(Error::bad_request(format!(
                 "Invalid method: {}",
                 $req.method()
             )));
