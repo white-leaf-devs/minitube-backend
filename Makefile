@@ -14,5 +14,5 @@ apply: | setup
 destroy:
 	@cd terraform; terraform destroy
 
-docs:
+docs: api/openapi.yml
 	@redoc-cli bundle -o docs/index.html api/openapi.yml
