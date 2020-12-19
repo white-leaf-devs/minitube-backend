@@ -13,7 +13,7 @@ use rusoto_dynamodb::{
 use rusoto_lambda::{InvocationRequest, Lambda, LambdaClient};
 use rusoto_s3::util::{PreSignedRequest, PreSignedRequestOption};
 use rusoto_s3::{PutObjectRequest, S3Client, S3};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{self as json, json};
 
 use crate::error::Error;
@@ -125,6 +125,35 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
     Ok(res.into_response())
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct VideoInfo {
+    labels: Vec<String>,
+    video_url: String,
+    preview_url: String,
+    thumbnail_url: String,
+}
+
+impl VideoInfo {
+    fn new(labels: Vec<String>, video_id: &str) -> Self {
+        let video_url = format!("https://s3.amazonaws.com/minitube.videos/{}", video_id);
+        let preview_url = format!(
+            "https://s3.amazonaws.com/minitube.previews/{}.gif",
+            video_id
+        );
+        let thumbnail_url = format!(
+            "https://s3.amazonaws.com/minitube.thumbnails/{}.png",
+            video_id
+        );
+
+        Self {
+            labels,
+            video_url,
+            preview_url,
+            thumbnail_url,
+        }
+    }
+}
+
 pub async fn search(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::GET, req);
 
@@ -136,10 +165,10 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
     let query: String = query["q"].split(' ').collect();
     let keys: Vec<_> = query
         .split(' ')
-        .map(|l| {
+        .map(|label| {
             hash_map! {
                 "Label".to_string() => AttributeValue {
-                    s: Some(l.to_string()),
+                    s: Some(label.to_string()),
                     ..Default::default()
                 }
             }
@@ -158,30 +187,42 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
     };
 
     let output = db.batch_get_item(input).await?;
-    let res = if let Some(responses) = output.responses {
-        if let Some(data) = responses.get("Labels") {
-            let simplified: Vec<_> = data
-                .iter()
-                .map(|m| {
-                    m.clone()
-                        .into_iter()
-                        .filter_map(|(k, v)| {
-                            let list = v.l?;
-                            let list: Vec<_> = list.into_iter().filter_map(|v| v.s).collect();
+    let labels_items = output
+        .responses
+        .map(|res| res.get("Labels").cloned())
+        .flatten();
 
-                            Some((k, list))
-                        })
-                        .collect::<HashMap<_, _>>()
-                })
-                .collect();
+    let json = if let Some(labels_items) = labels_items {
+        let simplified = labels_items.into_iter().filter_map(|item| {
+            let label = item.get("Label").cloned()?.s?;
+            let videos = item.get("Videos").cloned()?.ss?;
 
-            json::to_value(simplified)?
-        } else {
-            json! {{}}
+            Some((label, videos))
+        });
+
+        let mut video_to_labels = HashMap::new();
+        for (label, videos) in simplified {
+            for video in videos {
+                video_to_labels
+                    .entry(video)
+                    .or_insert_with(Vec::new)
+                    .push(label.clone());
+            }
         }
+
+        let videos: Vec<_> = video_to_labels
+            .into_iter()
+            .map(|(video_id, labels)| VideoInfo::new(labels, &video_id))
+            .collect();
+
+        json! {{
+            "videos": videos
+        }}
     } else {
-        json! {{}}
+        json! {{
+            "videos": Vec::<VideoInfo>::new()
+        }}
     };
 
-    Ok(res.into_response())
+    Ok(json.into_response())
 }
