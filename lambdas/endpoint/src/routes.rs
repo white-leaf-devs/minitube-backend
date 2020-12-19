@@ -4,7 +4,7 @@ use std::time::Duration;
 use common_macros::hash_map;
 use json::Value;
 use netlify_lambda_http::http::Method;
-use netlify_lambda_http::{Body, IntoResponse, Request, Response};
+use netlify_lambda_http::{Body, IntoResponse, Request, RequestExt, Response};
 use rusoto_core::{ByteStream, Region};
 use rusoto_credential::{ChainProvider, ProvideAwsCredentials};
 use rusoto_dynamodb::{
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self as json, json};
 
 use crate::error::Error;
-use crate::utils::{generate_id, is_valid_id, query_params};
+use crate::utils::{generate_id, is_valid_id};
 use crate::validate_request;
 
 pub async fn request_upload(req: Request) -> Result<Response<Body>, Error> {
@@ -41,6 +41,9 @@ pub async fn request_upload(req: Request) -> Result<Response<Body>, Error> {
         expires_in: Duration::from_secs(600),
     };
 
+    log::debug!("Credentials: {:?}", credentials);
+    log::debug!("PutObjectReq: {:?}", input);
+
     let presigned_url = input.get_presigned_url(&Region::UsEast1, &credentials, &options);
     let json_output = json!({
         "video_id": id,
@@ -54,18 +57,19 @@ pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::GET, req);
 
     log::info!("Requesting thumbnail generation");
-    let query = query_params(req.uri().query().unwrap_or(""));
-    if !query.get("video_id").map_or(false, |v| is_valid_id(v)) {
-        return Err(Error::bad_request(
-            "Invalid or not present `video_id` query param",
-        ));
+    let query = req.query_string_parameters();
+    log::debug!("Query params: {:?}", query);
+
+    let video_id = query
+        .get("video_id")
+        .ok_or_else(|| Error::bad_request("Missing `video_id` param"))?;
+    if !is_valid_id(video_id) {
+        return Err(Error::bad_request("Invalid `video_id` param"));
     }
 
     log::debug!("Invocating GenerateThumbnails lamda");
     let lambda = LambdaClient::new(Region::UsEast1);
-    let payload = json!({
-        "video_id": query["video_id"]
-    });
+    let payload = json!({ "video_id": video_id });
 
     let input = InvocationRequest {
         function_name: "GenerateThumbnailsLambda".to_string(),
@@ -82,6 +86,10 @@ pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
             .ok_or_else(|| Error::internal_error("Received unexpected empty output from lambda"))?;
 
         let contents = String::from_utf8(payload.to_vec())?;
+        log::debug!(
+            "Received contents from GenerateThumbnailsLambda: {:?}",
+            contents
+        );
         let json_output: Value = json::from_str(&contents)?;
         Ok(json_output.into_response())
     }
@@ -171,12 +179,11 @@ impl VideoInfo {
 pub async fn search(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::GET, req);
 
-    let query = query_params(req.uri().query().unwrap_or(""));
-    if !query.contains_key("q") {
-        return Err(Error::bad_request("Not present `q` query param"));
-    }
+    let query = req.query_string_parameters();
+    let query = query
+        .get("q")
+        .ok_or_else(|| Error::bad_request("Missing `q` param"))?;
 
-    let query: String = query["q"].split(' ').collect();
     let keys: Vec<_> = query
         .split(' ')
         .map(|label| {

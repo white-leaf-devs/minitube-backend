@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 pub const ALPHABET: [char; 63] = [
     '_', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
     'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A',
@@ -15,20 +13,6 @@ pub fn generate_id() -> String {
 
 pub fn is_valid_id(id: &str) -> bool {
     id.len() == ID_LEN && id.chars().all(|c| ALPHABET.contains(&c))
-}
-
-pub fn query_params<'a>(query: &'a str) -> HashMap<&'a str, &'a str> {
-    query
-        .split('&')
-        .filter_map(|kv| {
-            let split: Vec<_> = kv.split('=').collect();
-            if split.len() != 2 {
-                None
-            } else {
-                Some((split[0], split[1]))
-            }
-        })
-        .collect()
 }
 
 #[macro_export]
@@ -67,32 +51,4 @@ macro_rules! validate_request {
             )));
         }
     }};
-}
-
-#[cfg(test)]
-mod tests {
-    use super::query_params;
-    use common_macros::hash_map;
-
-    #[test]
-    fn single_query_params() {
-        let query = "key=val";
-        let expected = hash_map! {
-            "key" => "val"
-        };
-
-        assert_eq!(expected, query_params(query));
-    }
-
-    #[test]
-    fn multi_query_params() {
-        let query = "key1=val1&key2=&key3=val3";
-        let expected = hash_map! {
-            "key1" => "val1",
-            "key2" => "",
-            "key3" => "val3",
-        };
-
-        assert_eq!(expected, query_params(query));
-    }
 }
