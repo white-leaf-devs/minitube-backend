@@ -1,7 +1,11 @@
 mod data;
 
+use common_macros::hash_map;
 use netlify_lambda::{lambda, Context};
 use rusoto_core::Region;
+use rusoto_dynamodb::{
+    AttributeValue, DynamoDb, DynamoDbClient, TransactWriteItem, TransactWriteItemsInput, Update,
+};
 use rusoto_rekognition::{DetectLabelsRequest, Image, Rekognition, RekognitionClient, S3Object};
 
 use crate::data::{Labels, Records};
@@ -12,6 +16,7 @@ type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[tokio::main]
 async fn main(event: Records, _: Context) -> Result<Labels, DynError> {
     let record = event.records[0].clone();
+    let video_id = record.s3.object.key.clone();
 
     let rekognition = RekognitionClient::new(Region::UsEast1);
     let input = DetectLabelsRequest {
@@ -27,10 +32,49 @@ async fn main(event: Records, _: Context) -> Result<Labels, DynError> {
     };
 
     let output = rekognition.detect_labels(input).await?;
-
-    Ok(if let Some(labels) = output.labels {
+    let labels = if let Some(labels) = output.labels {
         Labels::from(labels)
     } else {
         Labels::default()
-    })
+    };
+
+    let db = DynamoDbClient::new(Region::UsEast1);
+    for chunk in labels.labels.chunks(25) {
+        let transact_items = chunk
+            .iter()
+            .map(|label| {
+                let update = Update {
+                    table_name: "Labels".to_string(),
+                    key: hash_map! {
+                        "Label".to_string() => AttributeValue{
+                            s: Some(label.to_owned()),
+                            ..Default::default()
+                        }
+                    },
+                    update_expression: "ADD Videos :video".to_string(),
+                    expression_attribute_values: Some(hash_map! {
+                        ":video".to_string() => AttributeValue {
+                            ss: Some(vec![ video_id.clone() ]),
+                            ..Default::default()
+                        }
+                    }),
+                    ..Default::default()
+                };
+
+                TransactWriteItem {
+                    update: Some(update),
+                    ..Default::default()
+                }
+            })
+            .collect();
+
+        let input = TransactWriteItemsInput {
+            transact_items,
+            ..Default::default()
+        };
+
+        db.transact_write_items(input).await?;
+    }
+
+    Ok(labels)
 }
