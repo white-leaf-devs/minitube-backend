@@ -570,7 +570,7 @@ dependencies = [
 
 [[package]]
 name = "label-thumbnail"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "anyhow",
  "common_macros",
