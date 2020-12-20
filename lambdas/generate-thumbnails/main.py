@@ -68,5 +68,5 @@ def lambda_handler(event, context):
     thumbnails = build_thumbnails(download_path, upload_path_prefix)
 
     return {
-        'data': json.dumps(thumbnails)
+        'data': thumbnails
     }
