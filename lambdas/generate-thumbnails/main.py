@@ -42,7 +42,8 @@ def build_thumbnails(in_filename, out_file_prefix):
         cv2.imwrite(filename, thum)
 
         with open(filename, 'rb') as image_file:
-            encoded_string = str(base64.b64encode(image_file.read()))
+            encoded_bytes = base64.b64encode(image_file.read())
+            encoded_string = encoded_bytes.decode('ascii')
             thumbnails_as_base64.append(encoded_string)
 
     return thumbnails_as_base64
