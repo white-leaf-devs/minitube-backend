@@ -198,7 +198,7 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
         .map(|label| {
             hash_map! {
                 "Label".to_string() => AttributeValue {
-                    s: Some(label.to_string()),
+                    s: Some(label.to_lowercase()),
                     ..Default::default()
                 }
             }
