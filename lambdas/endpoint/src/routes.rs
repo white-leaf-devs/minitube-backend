@@ -24,7 +24,7 @@ pub async fn request_upload(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::GET, req);
 
     let id = generate_id();
-    log::debug!("Generated video id: {}", id);
+    println!("Generated video id: {}", id);
 
     let input = PutObjectRequest {
         bucket: "minitube.videos".to_string(),
@@ -34,15 +34,13 @@ pub async fn request_upload(req: Request) -> Result<Response<Body>, Error> {
         ..Default::default()
     };
 
-    let mut provider = ChainProvider::new();
-    provider.set_timeout(Duration::from_secs(600));
-    let credentials = provider.credentials().await?;
-    let options = PreSignedRequestOption {
-        expires_in: Duration::from_secs(600),
-    };
+    let credentials = ChainProvider::new().credentials().await?;
+    let expires_in = Duration::from_secs(600);
+    let options = PreSignedRequestOption { expires_in };
 
-    log::debug!("Credentials: {:?}", credentials);
-    log::debug!("PutObjectReq: {:?}", input);
+    println!("PutObject request: {:?}", input);
+    println!("Credentials: {:?}", credentials);
+    println!("Expires in: {:?}", expires_in);
 
     let presigned_url = input.get_presigned_url(&Region::UsEast1, &credentials, &options);
     let json_output = json!({
@@ -56,20 +54,21 @@ pub async fn request_upload(req: Request) -> Result<Response<Body>, Error> {
 pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::GET, req);
 
-    log::info!("Requesting thumbnail generation");
     let query = req.query_string_parameters();
-    log::debug!("Query params: {:?}", query);
+    println!("Query parameters: {:?}", query);
 
     let video_id = query
         .get("video_id")
         .ok_or_else(|| Error::bad_request("Missing `video_id` param"))?;
+
+    println!("Received video_id: {}", video_id);
     if !is_valid_id(video_id) {
         return Err(Error::bad_request("Invalid `video_id` param"));
     }
 
-    log::debug!("Invocating GenerateThumbnails lamda");
     let lambda = LambdaClient::new(Region::UsEast1);
     let payload = json!({ "video_key": format!("{}.mp4", video_id) });
+    println!("Payload for lambda: {:#?}", payload);
 
     let input = InvocationRequest {
         function_name: "GenerateThumbnailsLambda".to_string(),
@@ -77,21 +76,21 @@ pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
         ..Default::default()
     };
 
+    println!("Invocation request: {:#?}", input);
     let output = lambda.invoke(input).await?;
-    if let Some(err) = output.function_error {
-        Err(Error::internal_error(format!("Function error: {}", err)))
-    } else {
-        let payload = output
-            .payload
-            .ok_or_else(|| Error::internal_error("Received unexpected empty output from lambda"))?;
+    println!("Lambda output: {:#?}", output);
 
-        let contents = String::from_utf8(payload.to_vec())?;
-        log::debug!(
-            "Received contents from GenerateThumbnailsLambda: {:?}",
-            contents
-        );
-        let json_output: Value = json::from_str(&contents)?;
-        Ok(json_output.into_response())
+    let payload = output
+        .payload
+        .map(|bytes| String::from_utf8(bytes.to_vec()))
+        .transpose()?
+        .unwrap_or_default();
+    println!("Lambda payload: {:?}", payload);
+
+    if let Some(err) = output.function_error {
+        Err(Error::internal_error(format!("{} ({})", err, payload)))
+    } else {
+        Ok(json::from_str::<Value>(&payload)?.into_response())
     }
 }
 
@@ -111,6 +110,7 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
         return Err(Error::bad_request("Invalid JSON body"));
     };
 
+    println!("Parsed body: {:#?}", body);
     let decoded_data =
         base64::decode(body.thumbnail_data).map_err(|e| Error::bad_request(e.to_string()))?;
 
@@ -124,12 +124,15 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
         ..Default::default()
     };
 
+    println!("PutObject request: {:?}", input);
     s3.put_object(input).await?;
+
     let lambda = LambdaClient::new(Region::UsEast1);
     let payload = json!({
         "video_id": body.video_id.clone(),
         "bucket": "minitube.thumbnails"
     });
+    println!("Payload for lambda: {:#?}", payload);
 
     let input = InvocationRequest {
         function_name: "LabelThumbnailLambda".to_string(),
@@ -137,17 +140,21 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
         ..Default::default()
     };
 
+    println!("Invocation request: {:#?}", input);
     let output = lambda.invoke(input).await?;
-    if let Some(err) = output.function_error {
-        Err(Error::internal_error(format!("Function error: {}", err)))
-    } else {
-        let payload = output
-            .payload
-            .ok_or_else(|| Error::internal_error("Received unexpected empty output from lambda"))?;
+    println!("Lambda output: {:#?}", output);
 
-        let contents = String::from_utf8(payload.to_vec())?;
-        let json_output: Value = json::from_str(&contents)?;
-        Ok(json_output.into_response())
+    let payload = output
+        .payload
+        .map(|bytes| String::from_utf8(bytes.to_vec()))
+        .transpose()?
+        .unwrap_or_default();
+    println!("Lambda payload: {:?}", payload);
+
+    if let Some(err) = output.function_error {
+        Err(Error::internal_error(format!("{} ({})", err, payload)))
+    } else {
+        Ok(json::from_str::<Value>(&payload)?.into_response())
     }
 }
 
@@ -180,11 +187,13 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::GET, req);
 
     let query = req.query_string_parameters();
+    println!("Query parameters: {:?}", query);
+
     let query = query
         .get("q")
         .ok_or_else(|| Error::bad_request("Missing `q` param"))?;
 
-    let keys: Vec<_> = query
+    let labels: Vec<_> = query
         .split(' ')
         .map(|label| {
             hash_map! {
@@ -196,23 +205,27 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
         })
         .collect();
 
+    println!("Labels to search: {:?}", labels);
     let db = DynamoDbClient::new(Region::UsEast1);
     let input = BatchGetItemInput {
         request_items: hash_map! {
             "Labels".to_string() => KeysAndAttributes {
-                keys,
+                keys: labels,
                 ..Default::default()
             }
         },
         ..Default::default()
     };
 
+    println!("BatchGetItem request: {:#?}", input);
     let output = db.batch_get_item(input).await?;
+
     let labels_items = output
         .responses
         .map(|res| res.get("Labels").cloned())
         .flatten();
 
+    println!("Items matching criteria: {:#?}", labels_items);
     let json = if let Some(labels_items) = labels_items {
         let simplified = labels_items.into_iter().filter_map(|item| {
             let label = item.get("Label").cloned()?.s?;
@@ -231,6 +244,7 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
             }
         }
 
+        println!("Video to labels: {:#?}", video_to_labels);
         let videos: Vec<_> = video_to_labels
             .into_iter()
             .map(|(video_id, labels)| VideoInfo::new(labels, &video_id))
