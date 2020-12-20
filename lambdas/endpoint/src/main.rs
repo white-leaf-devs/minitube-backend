@@ -2,17 +2,17 @@ pub mod error;
 pub mod routes;
 pub mod utils;
 
-use fern::Dispatch;
-use log::LevelFilter;
-use netlify_lambda::Context;
+use netlify_lambda_http::lambda::{lambda, Context};
 use netlify_lambda_http::{Body, IntoResponse, Request, Response};
 
 use crate::error::Error;
 
 type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-async fn handler(req: Request, _: Context) -> Result<Response<Body>, DynError> {
-    log::debug!("Processing request: {:#?}", req);
+#[lambda(http)]
+#[tokio::main]
+async fn main(req: Request, _: Context) -> Result<Response<Body>, DynError> {
+    println!("Processing request: {:#?}", req);
 
     let res = match req.uri().path() {
         "/requestUpload" => routes::request_upload(req).await,
@@ -26,32 +26,4 @@ async fn handler(req: Request, _: Context) -> Result<Response<Body>, DynError> {
         Ok(res) => res,
         Err(err) => err.into_response(),
     })
-}
-
-#[tokio::main]
-async fn main() -> Result<(), DynError> {
-    Dispatch::new()
-        .level(LevelFilter::Info)
-        .level_for("endpoint", LevelFilter::Debug)
-        .level_for("lambda_http", LevelFilter::Debug)
-        .chain(
-            Dispatch::new()
-                .format(move |out, msg, rec| {
-                    out.finish(format_args! {
-                        "{}[{}][{}] {}",
-                        chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
-                        rec.level(),
-                        rec.target(),
-                        msg
-                    })
-                })
-                .chain(std::io::stdout()),
-        )
-        .apply()?;
-
-    log::info!("Registering handler");
-    netlify_lambda::run(netlify_lambda_http::handler(handler)).await?;
-    log::info!("Handler registered");
-
-    Ok(())
 }
