@@ -41,6 +41,7 @@ resource "aws_lambda_function" "label_thumbnail" {
   image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/label-thumbnail:0.2.1"
   function_name = "LabelThumbnailLambda"
   role          = aws_iam_role.lambda.arn
+  timeout       = 180
 }
 
 resource "aws_s3_bucket_notification" "videos" {
