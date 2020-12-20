@@ -11,3 +11,5 @@ tag:
 
 push:
 	@docker push $(registry)/$(name):$(version)
+
+all: | build tag push
