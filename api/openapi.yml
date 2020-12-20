@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Minitube API
-  version: 1.1.1
+  version: 1.1.2
   contact:
     name: Kevin Del Castillo Ramirez
     email: quebin31@gmail.com
@@ -191,6 +191,10 @@ components:
         error_type:
           description: Error type.
           type: string
+          enum:
+            - internal_error
+            - bad_request
+            - invalid_route
         info:
           description: More information on what failed.
           type: string
