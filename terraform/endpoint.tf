@@ -3,6 +3,7 @@ resource "aws_lambda_function" "endpoint" {
   image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/minitube-endpoint:0.4.2"
   function_name = "EndpointLambda"
   role          = aws_iam_role.lambda.arn
+  timeout       = 180
 }
 
 resource "aws_api_gateway_integration" "endpoint" {
