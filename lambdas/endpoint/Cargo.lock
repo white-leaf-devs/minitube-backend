@@ -292,13 +292,9 @@ version = "0.4.2"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
- "chrono",
  "common_macros",
  "dotenv",
- "fern",
- "log",
  "nanoid",
- "netlify_lambda",
  "netlify_lambda_http",
  "rusoto_core",
  "rusoto_credential",
@@ -309,15 +305,6 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "fern"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c9a4820f0ccc8a7afd67c39a0f1a0f4b07ca1725164271a64939d7aeb9af065"
-dependencies = [
- "log",
 ]
 
 [[package]]
