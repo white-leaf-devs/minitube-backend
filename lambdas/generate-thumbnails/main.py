@@ -68,11 +68,5 @@ def lambda_handler(event, context):
     thumbnails = build_thumbnails(download_path, upload_path_prefix)
 
     return {
-        "statusCode": 200,
-        "headers": {
-            "Content-Type": "application/json"
-        },
-        "body": json.dumps({
-            "data": thumbnails
-        })
+        'data': json.dumps(thumbnails)
     }
