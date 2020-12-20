@@ -50,7 +50,7 @@ def build_thumbnails(in_filename, out_file_prefix):
 
 def lambda_handler(event, context):
     bucket = 'minitube.videos'
-    key = event['video_id']
+    key = event['video_key']
 
     tmpkey = key.replace('/', '')
 

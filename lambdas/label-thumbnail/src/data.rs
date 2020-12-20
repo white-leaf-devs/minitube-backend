@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ThumbnailEvent {
-    pub video_id: String,
+    pub thumbnail_key: String,
     pub bucket: String,
 }
 

@@ -69,7 +69,7 @@ pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
 
     log::debug!("Invocating GenerateThumbnails lamda");
     let lambda = LambdaClient::new(Region::UsEast1);
-    let payload = json!({ "video_id": format!("{}.mp4", video_id) });
+    let payload = json!({ "video_key": format!("{}.mp4", video_id) });
 
     let input = InvocationRequest {
         function_name: "GenerateThumbnailsLambda".to_string(),
@@ -127,7 +127,7 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
     s3.put_object(input).await?;
     let lambda = LambdaClient::new(Region::UsEast1);
     let payload = json!({
-        "video_id": format!("{}.png", body.video_id),
+        "thumbnail_key": format!("{}.png", body.video_id),
         "bucket": "minitube.thumbnails"
     });
 
