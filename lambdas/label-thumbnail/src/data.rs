@@ -31,6 +31,8 @@ impl From<Vec<Label>> for Labels {
             .flatten();
 
         labels.extend(parent_labels);
+        labels.sort();
+        labels.dedup();
         Self { labels }
     }
 }
