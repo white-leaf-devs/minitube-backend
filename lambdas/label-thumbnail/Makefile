@@ -3,13 +3,13 @@ version  := $(shell cat Cargo.toml | grep -E "^version = .*$$" | cut -d= -f2 | s
 registry := "768088100333.dkr.ecr.us-east-1.amazonaws.com"
 
 
-build:
+build: 
 	@docker build -t $(name):$(version) .
 
-tag: 
+tag: build
 	@docker tag $(name):$(version) $(registry)/$(name):$(version)
 
-push:
+push: tag
 	@docker push $(registry)/$(name):$(version)
 
-all: | build tag push
+all: build tag push
