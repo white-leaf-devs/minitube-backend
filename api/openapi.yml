@@ -65,8 +65,8 @@ paths:
     post:
       summary: Upload thumbnail for video.
       description: |
-        Upload a thumbnail for the specified video id, the thumbnail data (which
-        should be `image/png`) must be encoded with `base64`.
+        Upload a thumbnail for the specified video id, the thumbnail data must
+        be `image/png` and be encoded with standard `base64`.
       operationId: uploadThumbnail
       requestBody:
         description: Video id and thumbnail data.
@@ -93,7 +93,8 @@ paths:
     get:
       summary: Search videos with maching labels.
       description: |
-        Search videos with matching labels specified in the query parameter `q`.
+        Search videos with matching labels specified in the query parameter `q`, 
+        these are internally transformed to all lower case.
       operationId: search
       parameters:
         - in: query
