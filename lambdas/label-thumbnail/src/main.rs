@@ -19,7 +19,7 @@ async fn main(event: ThumbnailEvent, _: Context) -> Result<Labels, DynError> {
     let input = DetectLabelsRequest {
         image: Image {
             s3_object: Some(S3Object {
-                name: Some(event.thumbnail_key.clone()),
+                name: Some(format!("{}.png", event.video_id)),
                 bucket: Some(event.bucket.clone()),
                 ..Default::default()
             }),

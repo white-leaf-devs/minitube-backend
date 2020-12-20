@@ -127,7 +127,7 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
     s3.put_object(input).await?;
     let lambda = LambdaClient::new(Region::UsEast1);
     let payload = json!({
-        "thumbnail_key": format!("{}.png", body.video_id),
+        "video_id": body.video_id.clone(),
         "bucket": "minitube.thumbnails"
     });
 
