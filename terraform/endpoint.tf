@@ -1,6 +1,6 @@
 resource "aws_lambda_function" "endpoint" {
   package_type  = "Image"
-  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/minitube-endpoint:0.4.3"
+  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/minitube-endpoint:0.4.4"
   function_name = "EndpointLambda"
   role          = aws_iam_role.lambda.arn
   timeout       = 180
