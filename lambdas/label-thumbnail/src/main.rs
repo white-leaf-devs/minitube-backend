@@ -28,6 +28,7 @@ async fn main(event: ThumbnailEvent, _: Context) -> Result<Labels, DynError> {
         ..Default::default()
     };
 
+    println!("DetectLabels request: {:#?}", input);
     let output = rekognition.detect_labels(input).await?;
     let labels = if let Some(labels) = output.labels {
         Labels::from(labels)
@@ -35,6 +36,7 @@ async fn main(event: ThumbnailEvent, _: Context) -> Result<Labels, DynError> {
         Labels::default()
     };
 
+    println!("Collected labels: {:?}", labels);
     let db = DynamoDbClient::new(Region::UsEast1);
     for chunk in labels.labels.chunks(25) {
         let transact_items = chunk
@@ -70,6 +72,7 @@ async fn main(event: ThumbnailEvent, _: Context) -> Result<Labels, DynError> {
             ..Default::default()
         };
 
+        println!("TransactWriteItems request: {:?}", input);
         db.transact_write_items(input).await?;
     }
 
