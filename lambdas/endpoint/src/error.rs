@@ -40,12 +40,6 @@ pub enum Error {
         source: json::Error,
     },
 
-    #[error("Base64 decoder error: {source}")]
-    Base64DecoderError {
-        #[from]
-        source: base64::DecodeError,
-    },
-
     #[error("AWS credentials error: {source}")]
     CredentialsError {
         #[from]
