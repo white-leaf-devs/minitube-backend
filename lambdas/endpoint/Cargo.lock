@@ -275,12 +275,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 
 [[package]]
-name = "dotenv"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
-
-[[package]]
 name = "dtoa"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -291,14 +285,11 @@ name = "endpoint"
 version = "0.5.0"
 dependencies = [
  "anyhow",
- "base64 0.13.0",
  "common_macros",
- "dotenv",
  "nanoid",
  "netlify_lambda_http",
  "rusoto_core",
  "rusoto_credential",
- "rusoto_dynamodb",
  "rusoto_lambda",
  "rusoto_s3",
  "serde",
@@ -1265,20 +1256,6 @@ dependencies = [
  "shlex",
  "tokio",
  "zeroize",
-]
-
-[[package]]
-name = "rusoto_dynamodb"
-version = "0.45.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a1473bb1c1dd54f61c5e150aec47bcbf4a992963dcc3c60e12be5af3245cefc"
-dependencies = [
- "async-trait",
- "bytes",
- "futures",
- "rusoto_core",
- "serde",
- "serde_json",
 ]
 
 [[package]]
