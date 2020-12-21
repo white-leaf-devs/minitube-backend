@@ -13,28 +13,79 @@ pub struct Labels {
 }
 
 impl From<Vec<Label>> for Labels {
-    fn from(prelabels: Vec<Label>) -> Self {
-        let mut labels: Vec<_> = prelabels
-            .iter()
-            .cloned()
-            .filter_map(|label| label.name.map(|s| s.to_lowercase()))
+    fn from(rekognition_labels: Vec<Label>) -> Self {
+        let mut labels: Vec<_> = rekognition_labels
+            .into_iter()
+            .filter_map(|label| {
+                let label_str = label.name?;
+
+                let mut labels = label_str
+                    .split(' ')
+                    .filter(|s| !s.is_empty())
+                    .map(ToOwned::to_owned)
+                    .collect::<Vec<_>>();
+
+                let parents = label
+                    .parents
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter_map(|p| p.name)
+                    .map(|s| {
+                        s.split(' ')
+                            .filter(|s| !s.is_empty())
+                            .map(ToOwned::to_owned)
+                            .collect::<Vec<_>>()
+                    })
+                    .flatten();
+
+                labels.extend(parents);
+                Some(labels)
+            })
+            .flatten()
             .collect();
 
-        let parent_labels = prelabels
-            .iter()
-            .cloned()
-            .filter_map(|label| {
-                label.parents.map(|parents| {
-                    parents
-                        .into_iter()
-                        .filter_map(|parent| parent.name.map(|s| s.to_lowercase()))
-                })
-            })
-            .flatten();
-
-        labels.extend(parent_labels);
         labels.sort();
         labels.dedup();
+
         Self { labels }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusoto_rekognition::{Label, Parent};
+
+    #[test]
+    fn labels() {
+        let labels = vec![
+            Label {
+                name: Some("composed label".to_string()),
+                parents: Some(vec![Parent {
+                    name: Some("complex tag".to_string()),
+                }]),
+                ..Default::default()
+            },
+            Label {
+                name: Some("simple".to_string()),
+                parents: Some(vec![Parent {
+                    name: Some("plain".to_string()),
+                }]),
+                ..Default::default()
+            },
+            Label {
+                name: Some("simple".to_string()),
+                ..Default::default()
+            },
+        ];
+
+        let labels = Labels::from(labels);
+
+        let expected = ["complex", "composed", "label", "plain", "simple", "tag"]
+            .iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+
+        assert_eq!(expected, labels.labels);
     }
 }
