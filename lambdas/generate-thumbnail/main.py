@@ -19,7 +19,7 @@ def resizeThumbnail(thumbnail_path, width, height):
     im.save(thumbnail_path)
 
 def lambda_handler(event, context):
-    bucket = 'minitube.video'
+    bucket = 'minitube.videos'
     key = event['video_key']
     timestamp_in_seconds = int(event['timestamp'])
     timestamp = time.strftime('%H:%M:%S', time.gmtime(timestamp_in_seconds))
@@ -37,4 +37,4 @@ def lambda_handler(event, context):
     genThumbnail(download_path, upload_path, timestamp)
     resizeThumbnail(upload_path, 240, 135)
 
-    s3_client.upload_file(upload_path, 'minitube.thumbnail', f'{tmpkey_no_extension}.png', ExtraArgs={'ACL': 'public-read'})
+    s3_client.upload_file(upload_path, 'minitube.thumbnails', f'{tmpkey_no_extension}.png', ExtraArgs={'ACL': 'public-read'})

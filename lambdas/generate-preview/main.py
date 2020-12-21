@@ -71,4 +71,4 @@ def lambda_handler(event, context):
 
         build_preview(frame_paths, upload_path)
 
-        s3_client.upload_file(upload_path, 'minitube.preview', f'{tmpkey_no_extension}.gif', ExtraArgs={'ACL': 'public-read'})
+        s3_client.upload_file(upload_path, 'minitube.previews', f'{tmpkey_no_extension}.gif', ExtraArgs={'ACL': 'public-read'})
