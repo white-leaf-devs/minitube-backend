@@ -15,10 +15,10 @@ async fn main(req: Request, _: Context) -> Result<Response<Body>, DynError> {
     println!("Processing request: {:#?}", req);
 
     let res = match req.uri().path() {
-        "/requestUpload" => routes::request_upload(req).await,
-        "/genThumbnails" => routes::gen_thumbnails(req).await,
-        "/uploadThumbnail" => routes::upload_thumbnail(req).await,
         "/search" => routes::search(req).await,
+        "/createVideo" => routes::create_video(req).await,
+        "/generateThumbnail" => routes::generate_thumbnail(req).await,
+        "/detectAndSaveLabels" => routes::detect_and_save_labels(req).await,
         invalid => Err(Error::invalid_route(invalid)),
     };
 

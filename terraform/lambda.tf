@@ -1,39 +1,17 @@
-resource "aws_lambda_layer_version" "opencv" {
-  layer_name          = "OpenCVLayer"
-  s3_bucket           = aws_s3_bucket.code.id
-  s3_key              = aws_s3_bucket_object.opencv_layer.id
-  compatible_runtimes = ["python3.8"]
-}
-
 resource "aws_lambda_function" "generate_preview" {
-  package_type  = "Zip"
+  package_type  = "Image"
+  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/generate-preview:0.1.0"
   function_name = "GeneratePreviewLambda"
   role          = aws_iam_role.lambda.arn
-  s3_bucket     = aws_s3_bucket.code.id
-  s3_key        = aws_s3_bucket_object.generate_preview.id
-  handler       = "main.lambda_handler"
-  runtime       = "python3.8"
-  timeout       = 180
-
-  layers = [
-    aws_lambda_layer_version.opencv.arn,
-    "arn:aws:lambda:us-east-1:770693421928:layer:Klayers-python38-Pillow:7"
-  ]
+  timeout       = 120
 }
 
-resource "aws_lambda_function" "generate_thumbnails" {
-  package_type  = "Zip"
-  function_name = "GenerateThumbnailsLambda"
+resource "aws_lambda_function" "generate_thumbnail" {
+  package_type  = "Image"
+  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/generate-thumbnail:0.1.0"
+  function_name = "GenerateThumbnailLambda"
   role          = aws_iam_role.lambda.arn
-  s3_bucket     = aws_s3_bucket.code.id
-  s3_key        = aws_s3_bucket_object.generate_thumbnails.id
-  handler       = "main.lambda_handler"
-  runtime       = "python3.8"
-  timeout       = 180
-
-  layers = [
-    aws_lambda_layer_version.opencv.arn,
-  ]
+  timeout       = 120
 }
 
 resource "aws_lambda_function" "label_thumbnail" {
@@ -41,7 +19,7 @@ resource "aws_lambda_function" "label_thumbnail" {
   image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/label-thumbnail:0.2.4"
   function_name = "LabelThumbnailLambda"
   role          = aws_iam_role.lambda.arn
-  timeout       = 180
+  timeout       = 120
 }
 
 resource "aws_s3_bucket_notification" "videos" {
