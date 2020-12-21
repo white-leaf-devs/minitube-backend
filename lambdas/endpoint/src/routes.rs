@@ -5,14 +5,14 @@ use common_macros::hash_map;
 use json::Value;
 use netlify_lambda_http::http::Method;
 use netlify_lambda_http::{Body, IntoResponse, Request, RequestExt, Response};
-use rusoto_core::{ByteStream, Region};
+use rusoto_core::Region;
 use rusoto_credential::{ChainProvider, ProvideAwsCredentials};
 use rusoto_dynamodb::{
     AttributeValue, BatchGetItemInput, DynamoDb, DynamoDbClient, KeysAndAttributes,
 };
 use rusoto_lambda::{InvocationRequest, Lambda, LambdaClient};
 use rusoto_s3::util::{PreSignedRequest, PreSignedRequestOption};
-use rusoto_s3::{PutObjectRequest, S3Client, S3};
+use rusoto_s3::PutObjectRequest;
 use serde::{Deserialize, Serialize};
 use serde_json::{self as json, json};
 
@@ -20,7 +20,7 @@ use crate::error::Error;
 use crate::utils::{generate_id, is_valid_id};
 use crate::validate_request;
 
-pub async fn request_upload(req: Request) -> Result<Response<Body>, Error> {
+pub async fn create_video(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::GET, req);
 
     let id = generate_id();
@@ -51,27 +51,35 @@ pub async fn request_upload(req: Request) -> Result<Response<Body>, Error> {
     Ok(json_output.into_response())
 }
 
-pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
-    validate_request!(Method::GET, req);
+#[derive(Debug, Clone, Deserialize)]
+struct GenerateThumbnail {
+    video_id: String,
+    timestamp: usize,
+}
 
-    let query = req.query_string_parameters();
-    println!("Query parameters: {:?}", query);
+pub async fn generate_thumbnail(req: Request) -> Result<Response<Body>, Error> {
+    validate_request!(Method::POST, "application/json", req);
 
-    let video_id = query
-        .get("video_id")
-        .ok_or_else(|| Error::bad_request("Missing `video_id` param"))?;
+    let body: GenerateThumbnail = if let Body::Text(json) = req.body() {
+        json::from_str(&json).map_err(|e| Error::bad_request(e.to_string()))?
+    } else {
+        return Err(Error::bad_request("Invalid JSON body"));
+    };
 
-    println!("Received video_id: {}", video_id);
-    if !is_valid_id(video_id) {
-        return Err(Error::bad_request("Invalid `video_id` param"));
+    println!("Parsed JSON body: {:#?}", body);
+    if !is_valid_id(&body.video_id) {
+        return Err(Error::bad_request("Invalid `video_id`"));
     }
 
     let lambda = LambdaClient::new(Region::UsEast1);
-    let payload = json!({ "video_key": format!("{}.mp4", video_id) });
-    println!("Payload for lambda: {:#?}", payload);
+    let payload = json!({
+        "video_key": format!("{}.mp4", body.video_id),
+        "timestamp": body.timestamp,
+    });
 
+    println!("Payload for lambda: {:#?}", payload);
     let input = InvocationRequest {
-        function_name: "GenerateThumbnailsLambda".to_string(),
+        function_name: "GenerateThumbnailLambda".to_string(),
         payload: Some(payload.to_string().into()),
         ..Default::default()
     };
@@ -85,55 +93,41 @@ pub async fn gen_thumbnails(req: Request) -> Result<Response<Body>, Error> {
         .map(|bytes| String::from_utf8(bytes.to_vec()))
         .transpose()?
         .unwrap_or_default();
-    println!("Lambda payload: {:?}", payload);
 
+    println!("Lambda payload: {:?}", payload);
     if let Some(err) = output.function_error {
         Err(Error::internal_error(format!("{} ({})", err, payload)))
     } else {
-        Ok(json::from_str::<Value>(&payload)?.into_response())
+        Ok(().into_response())
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct UploadThumbnail {
+struct DetectAndSaveLabels {
     video_id: String,
-    /// Base64 (standard) encoded data
-    thumbnail_data: String,
 }
 
-pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
+pub async fn detect_and_save_labels(req: Request) -> Result<Response<Body>, Error> {
     validate_request!(Method::POST, "application/json", req);
 
-    let body: UploadThumbnail = if let Body::Text(json) = req.body() {
+    let body: DetectAndSaveLabels = if let Body::Text(json) = req.body() {
         json::from_str(&json).map_err(|e| Error::bad_request(e.to_string()))?
     } else {
         return Err(Error::bad_request("Invalid JSON body"));
     };
 
-    println!("Parsed body: {:#?}", body);
-    let decoded_data =
-        base64::decode(body.thumbnail_data).map_err(|e| Error::bad_request(e.to_string()))?;
-
-    let s3 = S3Client::new(Region::UsEast1);
-    let input = PutObjectRequest {
-        bucket: "minitube.thumbnails".to_string(),
-        key: format!("{}.png", body.video_id),
-        body: Some(ByteStream::from(decoded_data)),
-        acl: Some("public-read".to_string()),
-        content_type: Some("image/png".to_string()),
-        ..Default::default()
-    };
-
-    println!("PutObject request: {:?}", input);
-    s3.put_object(input).await?;
+    println!("Parsed JSON body: {:#?}", body);
+    if !is_valid_id(&body.video_id) {
+        return Err(Error::bad_request("Invalid `video_id`"));
+    }
 
     let lambda = LambdaClient::new(Region::UsEast1);
     let payload = json!({
         "video_id": body.video_id.clone(),
         "bucket": "minitube.thumbnails"
     });
-    println!("Payload for lambda: {:#?}", payload);
 
+    println!("Payload for lambda: {:#?}", payload);
     let input = InvocationRequest {
         function_name: "LabelThumbnailLambda".to_string(),
         payload: Some(payload.to_string().into()),
@@ -149,8 +143,8 @@ pub async fn upload_thumbnail(req: Request) -> Result<Response<Body>, Error> {
         .map(|bytes| String::from_utf8(bytes.to_vec()))
         .transpose()?
         .unwrap_or_default();
-    println!("Lambda payload: {:?}", payload);
 
+    println!("Lambda payload: {:?}", payload);
     if let Some(err) = output.function_error {
         Err(Error::internal_error(format!("{} ({})", err, payload)))
     } else {
@@ -190,7 +184,7 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
     println!("Query parameters: {:?}", query);
 
     let query = query
-        .get("q")
+        .get("query")
         .ok_or_else(|| Error::bad_request("Missing `q` param"))?;
 
     let labels: Vec<_> = query
