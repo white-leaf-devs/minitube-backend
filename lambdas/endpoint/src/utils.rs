@@ -52,3 +52,39 @@ macro_rules! validate_request {
         }
     }};
 }
+
+#[macro_export]
+macro_rules! invoke_lambda {
+    ($name:expr, $payload:expr) => {{
+        use rusoto_core::Region;
+        $crate::invoke_lambda!($name, $payload, Region::UsEast1)
+    }};
+
+    ($name:expr, $payload:expr, $region:expr) => {{
+        use rusoto_lambda::{InvocationRequest, Lambda, LambdaClient};
+
+        println!("Starting invokation of {}", $name);
+        let lambda = LambdaClient::new($region);
+        println!("Input payload: {:?}", $payload);
+
+        let input = InvocationRequest {
+            function_name: $name.to_string(),
+            payload: Some($payload.to_string().into()),
+            ..Default::default()
+        };
+
+        println!("Invocation request: {:?}", input);
+        let output = lambda.invoke(input).await?;
+        println!("Lambda output: {:?}", output);
+
+        let payload = output
+            .payload
+            .as_ref()
+            .map(|bytes| String::from_utf8(bytes.to_vec()))
+            .transpose()?
+            .unwrap_or_default();
+
+        println!("Output payload: {:?}", payload);
+        (output, payload)
+    }};
+}
