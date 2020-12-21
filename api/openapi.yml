@@ -1,91 +1,92 @@
 openapi: 3.0.0
 info:
   title: Minitube API
-  version: 1.1.2
+  version: 2.0.0
   contact:
     name: Kevin Del Castillo Ramirez
     email: quebin31@gmail.com
 paths:
-  "/requestUpload":
+  "/createVideo":
     description: |
-      Operations related to video upload.
+      Operations related to video creation.
     get:
-      summary: Request a presigned URL and video id.
+      summary: Create a new video.
       description: |
         Generates and returns a new video id and a presigned URL to put the video on
         the corresponding S3 bucket. In order to upload the video using the presigned URL 
-        you must sent a request with the following requisites:
+        you must sent a request with the following contents:
 
         - Raw video data (binary) must be included in the request body.
         - HTTP method must be `PUT`.
         - Header `X-Amz-ACL` must be `public-read`.
         - Header `Content-Type` must be `video/mp4`, therefore only mp4 videos are accepted.
-      operationId: requestUpload
+      operationId: createVideo
       responses:
         "200":
           description: Successful operation.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RequestUpload"
+                $ref: "#/components/schemas/CreateVideoResponse"
         "500":
-          $ref: "#/components/responses/InternalServerError"
+          $ref: "#/components/responses/InternalError"
 
-  "/genThumbnails":
+  "/generateThumbnail":
     description: |
-      Operations related to thumbnail generation.
-    get:
-      summary: Request thumbnail generation.
-      description: |
-        Requests thumbnail generation for the specified video id, the result 
-        contains an array where each item is a standard `base64` encoded string 
-        containing the thumbnail data, thumbnails are `image/png`.
-      operationId: genThumbnails
-      parameters:
-        - in: query
-          name: video_id
-          schema:
-            type: string
-          description: The video id for which thumbnails will be generated.
-      responses:
-        "200":
-          description: Successful operation.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/GenThumbnails"
-        "400":
-          $ref: "#/components/responses/InvalidRequestError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  "/uploadThumbnail":
-    description: |
-      Operations related to thumbnail selection.
+      Operations related to thumbnail configuration.
     post:
-      summary: Upload thumbnail for video.
+      summary: Generate video thumbnail.
       description: |
-        Upload a thumbnail for the specified video id, the thumbnail data must
-        be `image/png` and be encoded with standard `base64`.
-      operationId: uploadThumbnail
+        Request thumbnail generation for the specified video id and the given
+        video timestamp in seconds, this will save the generated thumbnail in 
+        the corresponding S3 bucket.
+      operationId: generateThumbnail
       requestBody:
-        description: Video id and thumbnail data.
+        description: Video id and timestamp.
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UploadThumbnail"
+              $ref: "#/components/schemas/GenerateThumbnailRequest"
+      responses:
+        "200":
+          description: Successful operation.
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/detectAndSaveLabels":
+    description: |
+      Operations related to labels detection and save.
+    post:
+      summary: Detect and save video labels.
+      description: |
+        Request label detection for the specified video id, this will detect 
+        labels for the previously generated thumbnail, save them on DynamoDB 
+        and return them.
+      operationId: detectAndSaveLabels
+      requestBody:
+        description: Video id.
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                video_id:
+                  description: Video id.
+                  type: string
       responses:
         "200":
           description: Successful operation.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UploadThumbnailResult"
+                $ref: "#/components/schemas/DetectAndSaveLabelsResponse"
         "400":
-          $ref: "#/components/responses/InvalidRequestError"
+          $ref: "#/components/responses/BadRequestError"
         "500":
-          $ref: "#/components/responses/InternalServerError"
+          $ref: "#/components/responses/InternalError"
 
   "/search":
     description: |
@@ -93,12 +94,12 @@ paths:
     get:
       summary: Search videos with maching labels.
       description: |
-        Search videos with matching labels specified in the query parameter `q`, 
-        these are internally transformed to all lower case.
+        Search videos with matching labels specified in the query parameter, 
+        these are internally transformed to lower case.
       operationId: search
       parameters:
         - in: query
-          name: q
+          name: query
           schema:
             type: string
           description: Query string with space separated labels.
@@ -108,15 +109,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SearchResult"
+                $ref: "#/components/schemas/SearchResultResponse"
         "400":
-          $ref: "#/components/responses/InvalidRequestError"
+          $ref: "#/components/responses/BadRequestError"
         "500":
-          $ref: "#/components/responses/InternalServerError"
+          $ref: "#/components/responses/InternalError"
 
 components:
   schemas:
-    RequestUpload:
+    CreateVideoResponse:
       properties:
         video_id:
           description: Generated video id.
@@ -126,39 +127,25 @@ components:
           type: string
           format: uri
 
-    GenThumbnails:
-      properties:
-        data:
-          description: Generated thumbnails data (`base64` encoded).
-          type: array
-          items:
-            type: string
-            format: base64
-          minItems: 5
-          maxItems: 5
-
-    UploadThumbnail:
+    GenerateThumbnailRequest:
       properties:
         video_id:
-          description: Selected video id.
+          description: Video id.
           type: string
-        thumbnail_data:
-          description: Thumbnail data encoded in `base64`
-          type: string
-          format: base64
+        timestamp:
+          description: The timestamp where the thumbnail will be generated.
+          type: number
+          format: seconds
 
-    UploadThumbnailResult:
+    DetectAndSaveLabelsResponse:
       properties:
-        video_id:
-          description: Selected video id.
-          type: string
         labels:
           description: Thumbnail labels.
           type: array
           items:
             type: string
 
-    SearchResult:
+    SearchResultResponse:
       properties:
         videos:
           description: All the videos with matching labels.
@@ -186,7 +173,7 @@ components:
                 type: string
                 format: uri
 
-    Error:
+    ErrorResponse:
       properties:
         error_type:
           description: Error type.
@@ -200,16 +187,16 @@ components:
           type: string
 
   responses:
-    InternalServerError:
+    InternalError:
       description: There was an internal server error.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
+            $ref: "#/components/schemas/ErrorResponse"
 
-    InvalidRequestError:
+    BadRequestError:
       description: Received an invalid request.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
+            $ref: "#/components/schemas/ErrorResponse"
