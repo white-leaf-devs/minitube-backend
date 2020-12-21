@@ -4,14 +4,19 @@ import os
 import time
 import base64
 import subprocess
+from PIL import Image
 
 s3_client = boto3.client('s3')
 
 def genThumbnail(video_path, thumbnail_path, timestamp):
-    result = subprocess.call(('ffmpeg','-i', video_path, '-ss', timestamp, '-vframes', '1', thumbnail_path))
+    result = subprocess.call(('ffmpeg', '-ss', timestamp, '-i', video_path, '-vframes', '1', thumbnail_path))
     print('RESULT OF FFMPEG CALL')
     print(result)
 
+def resizeThumbnail(thumbnail_path, width, height):
+    im = Image.open(thumbnail_path)
+    im = im.resize((width, height))
+    im.save(thumbnail_path)
 
 def lambda_handler(event, context):
     bucket = 'minitube.video'
@@ -30,5 +35,6 @@ def lambda_handler(event, context):
     print(upload_path)
 
     genThumbnail(download_path, upload_path, timestamp)
+    resizeThumbnail(upload_path, 240, 135)
 
     s3_client.upload_file(upload_path, 'minitube.thumbnail', f'{tmpkey_no_extension}.png', ExtraArgs={'ACL': 'public-read'})
