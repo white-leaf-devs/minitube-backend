@@ -8,15 +8,19 @@ from PIL import Image
 
 s3_client = boto3.client('s3')
 
-def genThumbnail(video_path, thumbnail_path, timestamp):
-    result = subprocess.call(('ffmpeg', '-ss', timestamp, '-i', video_path, '-vframes', '1', thumbnail_path))
+
+def gen_thumbnail(video_path, thumbnail_path, timestamp):
+    result = subprocess.call(
+        ('ffmpeg', '-ss', timestamp, '-i', video_path, '-vframes', '1', thumbnail_path))
     print('RESULT OF FFMPEG CALL')
     print(result)
 
-def resizeThumbnail(thumbnail_path, width, height):
+
+def resize_thumbnail(thumbnail_path, width, height):
     im = Image.open(thumbnail_path)
     im = im.resize((width, height))
     im.save(thumbnail_path)
+
 
 def lambda_handler(event, context):
     bucket = 'minitube.videos'
@@ -34,7 +38,8 @@ def lambda_handler(event, context):
     upload_path = '/tmp/thumb_{}.png'.format(tmpkey_no_extension)
     print(upload_path)
 
-    genThumbnail(download_path, upload_path, timestamp)
-    resizeThumbnail(upload_path, 240, 135)
+    gen_thumbnail(download_path, upload_path, timestamp)
+    resize_thumbnail(upload_path, 240, 135)
 
-    s3_client.upload_file(upload_path, 'minitube.thumbnails', f'{tmpkey_no_extension}.png', ExtraArgs={'ACL': 'public-read'})
+    s3_client.upload_file(upload_path, 'minitube.thumbnails',
+                          f'{tmpkey_no_extension}.png', ExtraArgs={'ACL': 'public-read'})
