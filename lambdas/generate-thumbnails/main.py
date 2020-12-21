@@ -1,73 +1,34 @@
 import boto3
 import json
-import cv2
 import os
-import sys
-import uuid
-from urllib.parse import unquote_plus
+import time
 import base64
+import subprocess
 
 s3_client = boto3.client('s3')
 
-
-def get_thumbnails(video, total_frames, jumps=5):
-    thumbnails = []
-
-    selected_frames = [i*(total_frames//jumps) for i in range(jumps)]
-
-    success = True
-    counter = 0
-    while success:
-        success, pixels = video.read()
-
-        if counter in selected_frames and success:
-            img = cv2.resize(pixels, (240, 135))
-            thumbnails.append(img)
-
-        counter += 1
-
-    return thumbnails
-
-
-def build_thumbnails(in_filename, out_file_prefix):
-    video = cv2.VideoCapture(in_filename)
-
-    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    thumbnails = get_thumbnails(video, frame_count)
-
-    thumbnails_as_base64 = []
-
-    for i, thum in enumerate(thumbnails):
-        filename = f'{out_file_prefix}_{i}.png'
-        cv2.imwrite(filename, thum)
-
-        with open(filename, 'rb') as image_file:
-            encoded_bytes = base64.b64encode(image_file.read())
-            encoded_string = encoded_bytes.decode('ascii')
-            thumbnails_as_base64.append(encoded_string)
-
-    return thumbnails_as_base64
+def genThumbnail(video_path, thumbnail_path, timestamp):
+    result = subprocess.call(('ffmpeg','-i', video_path, '-ss', timestamp, '-vframes', '1', thumbnail_path))
+    print('RESULT OF FFMPEG CALL')
+    print(result)
 
 
 def lambda_handler(event, context):
-    bucket = 'minitube.videos'
+    bucket = 'minitube.video'
     key = event['video_key']
+    timestamp_in_seconds = int(event['timestamp'])
+    timestamp = time.strftime('%H:%M:%S', time.gmtime(timestamp_in_seconds))
 
     tmpkey = key.replace('/', '')
-
     tmpkey_no_extension = os.path.splitext(tmpkey)[0]
 
-    file_id = uuid.uuid4()
-
-    download_path = '/tmp/{}{}'.format(file_id, tmpkey)
+    download_path = '/tmp/{}'.format(tmpkey)
     print(download_path)
     s3_client.download_file(bucket, key, download_path)
 
-    upload_path_prefix = '/tmp/thumb-{}'.format(tmpkey_no_extension)
-    print(upload_path_prefix)
+    upload_path = '/tmp/thumb_{}.png'.format(tmpkey_no_extension)
+    print(upload_path)
 
-    thumbnails = build_thumbnails(download_path, upload_path_prefix)
+    genThumbnail(download_path, upload_path, timestamp)
 
-    return {
-        'data': thumbnails
-    }
+    s3_client.upload_file(upload_path, 'minitube.thumbnail', f'{tmpkey_no_extension}.png', ExtraArgs={'ACL': 'public-read'})
