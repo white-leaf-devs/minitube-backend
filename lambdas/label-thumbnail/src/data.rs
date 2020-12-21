@@ -22,7 +22,7 @@ impl From<Vec<Label>> for Labels {
                 let mut labels = label_str
                     .split(' ')
                     .filter(|s| !s.is_empty())
-                    .map(ToOwned::to_owned)
+                    .map(|s| s.to_lowercase())
                     .collect::<Vec<_>>();
 
                 let parents = label
@@ -33,7 +33,7 @@ impl From<Vec<Label>> for Labels {
                     .map(|s| {
                         s.split(' ')
                             .filter(|s| !s.is_empty())
-                            .map(ToOwned::to_owned)
+                            .map(|s| s.to_lowercase())
                             .collect::<Vec<_>>()
                     })
                     .flatten();
@@ -60,21 +60,21 @@ mod tests {
     fn labels() {
         let labels = vec![
             Label {
-                name: Some("composed label".to_string()),
+                name: Some("Composed Label".to_string()),
                 parents: Some(vec![Parent {
-                    name: Some("complex tag".to_string()),
+                    name: Some("Complex Tag".to_string()),
                 }]),
                 ..Default::default()
             },
             Label {
-                name: Some("simple".to_string()),
+                name: Some("Simple".to_string()),
                 parents: Some(vec![Parent {
-                    name: Some("plain".to_string()),
+                    name: Some("Plain".to_string()),
                 }]),
                 ..Default::default()
             },
             Label {
-                name: Some("simple".to_string()),
+                name: Some("Simple".to_string()),
                 ..Default::default()
             },
         ];
