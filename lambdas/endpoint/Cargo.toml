@@ -2,12 +2,12 @@
 authors = ["Kevin Del Castillo <quebin31@gmail.com>"]
 edition = "2018"
 name = "endpoint"
-version = "0.4.4"
+version = "0.5.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.35"
+anyhow = "1.0.36"
 base64 = "0.13.0"
 common_macros = "0.1.1"
 dotenv = "0.15.0"
