@@ -16,7 +16,7 @@ resource "aws_lambda_function" "generate_thumbnail" {
 
 resource "aws_lambda_function" "label_thumbnail" {
   package_type  = "Image"
-  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/label-thumbnail:0.3.0"
+  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/label-thumbnail:0.3.1"
   function_name = "LabelThumbnailLambda"
   role          = aws_iam_role.lambda.arn
   timeout       = 120
