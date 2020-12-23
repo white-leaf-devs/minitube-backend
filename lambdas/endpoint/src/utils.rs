@@ -1,3 +1,5 @@
+use netlify_lambda_http::{Body, IntoResponse, Response};
+
 pub const ALPHABET: [char; 63] = [
     '_', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
     'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A',
@@ -15,22 +17,37 @@ pub fn is_valid_id(id: &str) -> bool {
     id.len() == ID_LEN && id.chars().all(|c| ALPHABET.contains(&c))
 }
 
+pub trait IntoCorsResponse {
+    fn into_cors_response(self) -> Response<Body>;
+}
+
+impl<T> IntoCorsResponse for T
+where
+    T: IntoResponse,
+{
+    fn into_cors_response(self) -> Response<Body> {
+        let mut res = self.into_response();
+        let headers = res.headers_mut();
+
+        headers.insert("Access-Control-Allow-Headers", "*".parse().unwrap());
+        headers.insert("Access-Control-Allow-Origin", "*".parse().unwrap());
+        headers.insert(
+            "Access-Control-Allow-Methods",
+            "OPTIONS,GET,POST".parse().unwrap(),
+        );
+
+        res
+    }
+}
+
 #[macro_export]
 macro_rules! handle_preflight_request {
     ($req:expr) => {{
         use netlify_lambda_http::http::Method;
-        use netlify_lambda_http::{Body, Response};
+        use $crate::utils::IntoCorsResponse;
 
         if $req.method() == &Method::OPTIONS {
-            let res = Response::builder()
-                .status(200)
-                .header("Access-Control-Allow-Headers", "*")
-                .header("Access-Control-Allow-Origin", "*")
-                .header("Access-Control-Allow-Methods", "OPTIONS,GET,POST")
-                .body(Body::Empty)
-                .unwrap();
-
-            return Ok(res);
+            return Ok(().into_cors_response());
         }
     }};
 }
