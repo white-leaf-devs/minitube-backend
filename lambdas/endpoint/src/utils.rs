@@ -16,6 +16,26 @@ pub fn is_valid_id(id: &str) -> bool {
 }
 
 #[macro_export]
+macro_rules! handle_preflight_request {
+    ($req:expr) => {{
+        use netlify_lambda_http::http::Method;
+        use netlify_lambda_http::{Body, Response};
+
+        if $req.method() == &Method::OPTIONS {
+            let res = Response::builder()
+                .status(200)
+                .header("Access-Control-Allow-Headers", "*")
+                .header("Access-Control-Allow-Origin", "*")
+                .header("Access-Control-Allow-Methods", "OPTIONS,GET,POST")
+                .body(Body::Empty)
+                .unwrap();
+
+            return Ok(res);
+        }
+    }};
+}
+
+#[macro_export]
 macro_rules! validate_request {
     ($method:path, $content_type:expr, $req:expr) => {{
         use $crate::error::Error;
