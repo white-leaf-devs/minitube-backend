@@ -3,9 +3,10 @@ pub mod routes;
 pub mod utils;
 
 use netlify_lambda_http::lambda::{lambda, Context};
-use netlify_lambda_http::{Body, IntoResponse, Request, Response};
+use netlify_lambda_http::{Body, Request, Response};
 
 use crate::error::Error;
+use crate::utils::IntoCorsResponse;
 
 type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -24,7 +25,7 @@ async fn main(req: Request, _: Context) -> Result<Response<Body>, DynError> {
 
     let res = match res {
         Ok(res) => res,
-        Err(err) => err.into_response(),
+        Err(err) => err.into_cors_response(),
     };
 
     println!("Sending response: {:?}", res);

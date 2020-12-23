@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use json::Value;
 use netlify_lambda_http::http::Method;
-use netlify_lambda_http::{Body, IntoResponse, Request, RequestExt, Response};
+use netlify_lambda_http::{Body, Request, RequestExt, Response};
 use rusoto_core::Region;
 use rusoto_credential::{ChainProvider, ProvideAwsCredentials};
 use rusoto_s3::util::{PreSignedRequest, PreSignedRequestOption};
@@ -11,7 +11,7 @@ use serde::Deserialize;
 use serde_json::{self as json, json};
 
 use crate::error::Error;
-use crate::utils::{generate_id, is_valid_id};
+use crate::utils::{generate_id, is_valid_id, IntoCorsResponse};
 use crate::{handle_preflight_request, invoke_lambda, validate_request};
 
 pub async fn create_video(req: Request) -> Result<Response<Body>, Error> {
@@ -43,7 +43,7 @@ pub async fn create_video(req: Request) -> Result<Response<Body>, Error> {
         "presigned_url": presigned_url
     });
 
-    Ok(json_output.into_response())
+    Ok(json_output.into_cors_response())
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -76,7 +76,7 @@ pub async fn generate_thumbnail(req: Request) -> Result<Response<Body>, Error> {
     if let Some(err) = output.function_error {
         Err(Error::internal_error(format!("{} ({})", err, payload)))
     } else {
-        Ok(().into_response())
+        Ok(().into_cors_response())
     }
 }
 
@@ -109,7 +109,7 @@ pub async fn detect_and_save_labels(req: Request) -> Result<Response<Body>, Erro
     if let Some(err) = output.function_error {
         Err(Error::internal_error(format!("{} ({})", err, payload)))
     } else {
-        Ok(json::from_str::<Value>(&payload)?.into_response())
+        Ok(json::from_str::<Value>(&payload)?.into_cors_response())
     }
 }
 
@@ -131,6 +131,6 @@ pub async fn search(req: Request) -> Result<Response<Body>, Error> {
     if let Some(err) = output.function_error {
         Err(Error::internal_error(format!("{} ({})", err, payload)))
     } else {
-        Ok(json::from_str::<Value>(&payload)?.into_response())
+        Ok(json::from_str::<Value>(&payload)?.into_cors_response())
     }
 }
