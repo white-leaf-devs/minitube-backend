@@ -12,7 +12,7 @@ type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[lambda(http)]
 #[tokio::main]
 async fn main(req: Request, _: Context) -> Result<Response<Body>, DynError> {
-    println!("Processing request: {:#?}", req);
+    println!("Processing request: {:?}", req);
 
     let res = match req.uri().path() {
         "/search" => routes::search(req).await,
@@ -22,8 +22,11 @@ async fn main(req: Request, _: Context) -> Result<Response<Body>, DynError> {
         invalid => Err(Error::invalid_route(invalid)),
     };
 
-    Ok(match res {
+    let res = match res {
         Ok(res) => res,
         Err(err) => err.into_response(),
-    })
+    };
+
+    println!("Sending response: {:?}", res);
+    Ok(res)
 }

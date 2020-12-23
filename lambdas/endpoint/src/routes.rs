@@ -62,7 +62,7 @@ pub async fn generate_thumbnail(req: Request) -> Result<Response<Body>, Error> {
         return Err(Error::bad_request("Invalid JSON body"));
     };
 
-    println!("Parsed JSON body: {:#?}", body);
+    println!("Parsed JSON body: {:?}", body);
     if !is_valid_id(&body.video_id) {
         return Err(Error::bad_request("Invalid `video_id`"));
     }
@@ -95,7 +95,7 @@ pub async fn detect_and_save_labels(req: Request) -> Result<Response<Body>, Erro
         return Err(Error::bad_request("Invalid JSON body"));
     };
 
-    println!("Parsed JSON body: {:#?}", body);
+    println!("Parsed JSON body: {:?}", body);
     if !is_valid_id(&body.video_id) {
         return Err(Error::bad_request("Invalid `video_id`"));
     }
