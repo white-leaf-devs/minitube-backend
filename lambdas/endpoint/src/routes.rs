@@ -12,9 +12,10 @@ use serde_json::{self as json, json};
 
 use crate::error::Error;
 use crate::utils::{generate_id, is_valid_id};
-use crate::{invoke_lambda, validate_request};
+use crate::{handle_preflight_request, invoke_lambda, validate_request};
 
 pub async fn create_video(req: Request) -> Result<Response<Body>, Error> {
+    handle_preflight_request!(req);
     validate_request!(Method::GET, req);
 
     let id = generate_id();
@@ -52,6 +53,7 @@ struct GenerateThumbnail {
 }
 
 pub async fn generate_thumbnail(req: Request) -> Result<Response<Body>, Error> {
+    handle_preflight_request!(req);
     validate_request!(Method::POST, "application/json", req);
 
     let body: GenerateThumbnail = if let Body::Text(json) = req.body() {
@@ -84,6 +86,7 @@ struct DetectAndSaveLabels {
 }
 
 pub async fn detect_and_save_labels(req: Request) -> Result<Response<Body>, Error> {
+    handle_preflight_request!(req);
     validate_request!(Method::POST, "application/json", req);
 
     let body: DetectAndSaveLabels = if let Body::Text(json) = req.body() {
@@ -111,6 +114,7 @@ pub async fn detect_and_save_labels(req: Request) -> Result<Response<Body>, Erro
 }
 
 pub async fn search(req: Request) -> Result<Response<Body>, Error> {
+    handle_preflight_request!(req);
     validate_request!(Method::GET, req);
 
     let query = req.query_string_parameters();
