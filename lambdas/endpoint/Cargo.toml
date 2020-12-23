@@ -2,7 +2,7 @@
 authors = ["Kevin Del Castillo <quebin31@gmail.com>"]
 edition = "2018"
 name = "endpoint"
-version = "0.6.1"
+version = "0.6.2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
