@@ -1,85 +1,62 @@
 import boto3
-import json
 import os
-import glob
-import time
-import base64
 import subprocess
-from PIL import Image
 from urllib.parse import unquote_plus
 
 s3_client = boto3.client('s3')
 
 
-def resize_frame(frame_path, width, height):
-    im = Image.open(frame_path)
-    im = im.resize((width, height))
-    return im
-
-
-def get_video_duration(video_path):
+def get_video_duration(video_path: str):
+    print('Calling ffprobe to get video length in seconds')
     result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
                              'stream=duration', '-of', 'default=noprint_wrappers=1:nokey=1', video_path], stdout=subprocess.PIPE)
-    print('RESULT OF FFPROBE CALL')
-    print(result)
 
-    duration_in_seconds = int(
-        float(result.stdout.decode('utf-8').strip())) // 2
-    duration = time.strftime('%H:%M:%S', time.gmtime(duration_in_seconds))
+    print(f'Call result: {result}')
+    duration = float(result.stdout.decode('utf-8').strip())
+    print(f'Video duration: {duration}')
     return duration
 
 
-def get_n_frames(video_path, frame_prefix_path, n, start_timestamp):
-    result = subprocess.call(('ffmpeg', '-ss', start_timestamp, '-i',
-                              video_path, '-frames:v', str(n), frame_prefix_path + r'%03d.png'))
-    print('RESULT OF FFMPEG CALL')
-    print(result)
-
-    list_of_files_result = subprocess.run(
-        ['ls', '/tmp'], stdout=subprocess.PIPE)
-    list_of_files = list_of_files_result.stdout.decode('utf-8').split('\n')
-
-    frames = [f'/tmp/{f}' for f in list_of_files if 'png' in f]
-    frames.sort()
-
-    print('FRAMES')
-    print(frames)
-    return frames
+def generate_frames(video_path: str, frame_prefix: str, n: int, start: float, width: int, height: int):
+    print(f'Calling ffmpeg to seek and extract {n} frames')
+    result = subprocess.call(['ffmpeg', '-ss', str(start), '-i',
+                              video_path, '-frames:v', str(n), '-s', f'{width}x{height}', '-y', f'{frame_prefix}%03d.png'])
+    print(f'Call result: {result}')
 
 
-def build_preview(frame_paths, preview_path):
-    frames = []
-    for filename in frame_paths:
-        im = resize_frame(filename, 240, 135)
-        frames.append(im)
-
-    frames[0].save(preview_path, save_all=True,
-                   append_images=frames[1:], optimize=True)
+def build_preview(frame_prefix: str, preview_path: str):
+    print(f'Calling ffmpeg to generate preview')
+    result = subprocess.call(
+        ['ffmpeg', '-i', f'{frame_prefix}%03d.png', '-y', preview_path])
+    print(f'Call result: {result}')
 
 
 def lambda_handler(event, context):
     for record in event['Records']:
         bucket = record['s3']['bucket']['name']
-        key = unquote_plus(record['s3']['object']['key'])
+        video_key = unquote_plus(record['s3']['object']['key'])
+        video_id = video_key.split('.')[0]
 
-        tmpkey = key.replace('/', '')
-        tmpkey_no_extension = os.path.splitext(tmpkey)[0]
+        video_path = f'/tmp/{video_key}'
+        s3_client.download_file(bucket, video_key, video_path)
 
-        download_path = '/tmp/{}'.format(tmpkey)
-        print(download_path)
+        if not os.path.isfile(video_path):
+            print(f'{video_path} doesn\'t exist or isn\'t a file!')
+            raise Exception(
+                f'Couldn\'t download {video_key} from bucket {bucket}')
 
-        prefix_path = f'/tmp/frame'
-        upload_path = '/tmp/preview_{}.gif'.format(tmpkey_no_extension)
-        print(upload_path)
-
-        s3_client.download_file(bucket, key, download_path)
+        frame_prefix = '/tmp/frame'
+        preview_path = f'/tmp/{video_id}.gif'
 
         number_of_frames = 30
-        start_timestamp = get_video_duration(download_path)
-        frame_paths = get_n_frames(
-            download_path, prefix_path, number_of_frames, start_timestamp)
+        start = get_video_duration(video_path) / 2
+        generate_frames(video_path, frame_prefix,
+                        number_of_frames, start, 240, 135)
+        build_preview(frame_prefix, preview_path)
 
-        build_preview(frame_paths, upload_path)
+        if not os.path.isfile(preview_path):
+            print(f'{preview_path} doesn\'t exist or isn\'t a file!')
+            raise Exception(f'Couldn\'t generate preview from video')
 
-        s3_client.upload_file(upload_path, 'minitube.previews',
-                              f'{tmpkey_no_extension}.gif', ExtraArgs={'ACL': 'public-read'})
+        s3_client.upload_file(preview_path, 'minitube.previews',
+                              f'{video_id}.gif', ExtraArgs={'ACL': 'public-read'})
