@@ -1,45 +1,38 @@
 import boto3
-import json
 import os
-import time
-import base64
 import subprocess
-from PIL import Image
 
 s3_client = boto3.client('s3')
 
 
-def gen_thumbnail(video_path, thumbnail_path, timestamp):
+def generate_thumbnail(video_path: str, thumbnail_path: str, timestamp: float, width: int, height: int):
+    print('Calling ffmpeg to seek and extract one frame')
+    print(f'Timestamp (in seconds): {timestamp}')
+
     result = subprocess.call(
-        ('ffmpeg', '-ss', timestamp, '-i', video_path, '-vframes', '1', thumbnail_path))
-    print('RESULT OF FFMPEG CALL')
-    print(result)
-
-
-def resize_thumbnail(thumbnail_path, width, height):
-    im = Image.open(thumbnail_path)
-    im = im.resize((width, height))
-    im.save(thumbnail_path)
+        ['ffmpeg', '-ss', str(timestamp), '-i', video_path, '-frames:v', '1', '-s', f'{width}x{height}', thumbnail_path], timeout=None)
+    print(f'Call result: {result}')
 
 
 def lambda_handler(event, context):
-    bucket = 'minitube.videos'
-    key = event['video_key']
-    timestamp_in_seconds = int(event['timestamp'])
-    timestamp = time.strftime('%H:%M:%S', time.gmtime(timestamp_in_seconds))
+    bucket = event['bucket']
+    video_key = event['video_key']
+    timestamp = float(event['timestamp'])
+    video_id = video_key.split('.')[0]
 
-    tmpkey = key.replace('/', '')
-    tmpkey_no_extension = os.path.splitext(tmpkey)[0]
+    video_path = f'/tmp/{video_key}'
+    s3_client.download_file(bucket, video_key, video_path)
 
-    download_path = '/tmp/{}'.format(tmpkey)
-    print(download_path)
-    s3_client.download_file(bucket, key, download_path)
+    if not os.path.isfile(video_path):
+        print(f'{video_path} doesn\'t exist or isn\'t a file!')
+        raise Exception(f'Couldn\'t download {video_key} from bucket {bucket}')
 
-    upload_path = '/tmp/thumb_{}.png'.format(tmpkey_no_extension)
-    print(upload_path)
+    thumbnail_path = f'/tmp/{video_id}.png'
+    generate_thumbnail(video_path, thumbnail_path, timestamp, 240, 135)
 
-    gen_thumbnail(download_path, upload_path, timestamp)
-    resize_thumbnail(upload_path, 240, 135)
+    if not os.path.isfile(thumbnail_path):
+        print(f'{thumbnail_path} doesn\'t exist or isn\'t a file!')
+        raise Exception(f'Couldn\'t generate thumbnail from video')
 
-    s3_client.upload_file(upload_path, 'minitube.thumbnails',
-                          f'{tmpkey_no_extension}.png', ExtraArgs={'ACL': 'public-read'})
+    s3_client.upload_file(thumbnail_path, 'minitube.thumbnails',
+                          f'{video_id}.png', ExtraArgs={'ACL': 'public-read'})
