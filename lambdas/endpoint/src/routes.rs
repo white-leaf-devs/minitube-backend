@@ -68,6 +68,7 @@ pub async fn generate_thumbnail(req: Request) -> Result<Response<Body>, Error> {
     }
 
     let payload = json!({
+        "bucket": "minitube.videos",
         "video_key": format!("{}.mp4", body.video_id),
         "timestamp": body.timestamp,
     });
