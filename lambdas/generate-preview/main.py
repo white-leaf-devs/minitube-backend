@@ -32,21 +32,23 @@ def build_preview(frame_prefix: str, preview_path: str):
 
 
 def lambda_handler(event, context):
+    os.chdir('/tmp')
+
     for record in event['Records']:
         bucket = record['s3']['bucket']['name']
         video_key = unquote_plus(record['s3']['object']['key'])
         video_id = video_key.split('.')[0]
 
-        video_path = f'/tmp/{video_key}'
-        s3_client.download_file(bucket, video_key, video_path)
+        video_path = f'{video_key}'
 
+        s3_client.download_file(bucket, video_key, video_path)
         if not os.path.isfile(video_path):
             print(f'{video_path} doesn\'t exist or isn\'t a file!')
             raise Exception(
                 f'Couldn\'t download {video_key} from bucket {bucket}')
 
-        frame_prefix = f'/tmp/{video_id}_frame'
-        preview_path = f'/tmp/{video_id}.gif'
+        frame_prefix = f'{video_id}_frame'
+        preview_path = f'{video_id}.gif'
 
         number_of_frames = 30
         start = get_video_duration(video_path) / 2

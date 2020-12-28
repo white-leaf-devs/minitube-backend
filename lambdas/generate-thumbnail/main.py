@@ -15,19 +15,21 @@ def generate_thumbnail(video_path: str, thumbnail_path: str, timestamp: float, w
 
 
 def lambda_handler(event, context):
+    os.chdir('/tmp')
+
     bucket = event['bucket']
     video_key = event['video_key']
     timestamp = float(event['timestamp'])
     video_id = video_key.split('.')[0]
 
-    video_path = f'/tmp/{video_key}'
+    video_path = f'{video_key}'
     s3_client.download_file(bucket, video_key, video_path)
 
     if not os.path.isfile(video_path):
         print(f'{video_path} doesn\'t exist or isn\'t a file!')
         raise Exception(f'Couldn\'t download {video_key} from bucket {bucket}')
 
-    thumbnail_path = f'/tmp/{video_id}.png'
+    thumbnail_path = f'{video_id}.png'
     generate_thumbnail(video_path, thumbnail_path, timestamp, 240, 135)
 
     if not os.path.isfile(thumbnail_path):

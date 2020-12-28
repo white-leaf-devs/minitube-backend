@@ -1,5 +1,5 @@
 name 	 := "generate-thumbnail"
-version  := "0.2.1"
+version  := "0.2.2"
 registry := "768088100333.dkr.ecr.us-east-1.amazonaws.com"
 
 

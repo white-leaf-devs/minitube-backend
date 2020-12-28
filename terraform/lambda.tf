@@ -1,6 +1,6 @@
 resource "aws_lambda_function" "generate_preview" {
   package_type  = "Image"
-  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/generate-preview:0.2.1"
+  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/generate-preview:0.2.2"
   function_name = "GeneratePreviewLambda"
   role          = aws_iam_role.lambda.arn
   timeout       = 160
@@ -8,7 +8,7 @@ resource "aws_lambda_function" "generate_preview" {
 
 resource "aws_lambda_function" "generate_thumbnail" {
   package_type  = "Image"
-  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/generate-thumbnail:0.2.1"
+  image_uri     = "768088100333.dkr.ecr.us-east-1.amazonaws.com/generate-thumbnail:0.2.2"
   function_name = "GenerateThumbnailLambda"
   role          = aws_iam_role.lambda.arn
   timeout       = 120
