@@ -10,7 +10,7 @@ def generate_thumbnail(video_path: str, thumbnail_path: str, timestamp: float, w
     print(f'Timestamp (in seconds): {timestamp}')
 
     result = subprocess.call(
-        ['ffmpeg', '-ss', str(timestamp), '-i', video_path, '-frames:v', '1', '-s', f'{width}x{height}', thumbnail_path], timeout=None)
+        ['ffmpeg', '-ss', str(timestamp), '-i', video_path, '-frames:v', '1', '-s', f'{width}x{height}', '-y', thumbnail_path], timeout=None)
     print(f'Call result: {result}')
 
 
