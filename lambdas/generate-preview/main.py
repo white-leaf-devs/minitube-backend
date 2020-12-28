@@ -45,7 +45,7 @@ def lambda_handler(event, context):
             raise Exception(
                 f'Couldn\'t download {video_key} from bucket {bucket}')
 
-        frame_prefix = '/tmp/frame'
+        frame_prefix = f'/tmp/{video_id}_frame'
         preview_path = f'/tmp/{video_id}.gif'
 
         number_of_frames = 30
