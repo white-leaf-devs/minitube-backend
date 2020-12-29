@@ -40,7 +40,7 @@ paths:
         Request thumbnail generation for the specified video id and the given
         video timestamp in seconds, this will save the generated thumbnail in 
         the corresponding S3 bucket, detect labels with Rekognition and save 
-        in DynamoDB.
+        them in DynamoDB.
       operationId: generateThumbnail
       requestBody:
         description: Video id and timestamp.
