@@ -75,30 +75,7 @@ pub async fn generate_thumbnail(req: Request) -> Result<Response<Body>, Error> {
 
     let (output, payload) = invoke_lambda!("GenerateThumbnailLambda", payload);
     if let Some(err) = output.function_error {
-        Err(Error::internal_error(format!("{} ({})", err, payload)))
-    } else {
-        Ok(().into_cors_response())
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct DetectAndSaveLabels {
-    video_id: String,
-}
-
-pub async fn detect_and_save_labels(req: Request) -> Result<Response<Body>, Error> {
-    handle_preflight_request!(req);
-    validate_request!(Method::POST, "application/json", req);
-
-    let body: DetectAndSaveLabels = if let Body::Text(json) = req.body() {
-        json::from_str(&json).map_err(|e| Error::bad_request(e.to_string()))?
-    } else {
-        return Err(Error::bad_request("Invalid JSON body"));
-    };
-
-    println!("Parsed JSON body: {:?}", body);
-    if !is_valid_id(&body.video_id) {
-        return Err(Error::bad_request("Invalid `video_id`"));
+        return Err(Error::internal_error(format!("{} ({})", err, payload)));
     }
 
     let payload = json!({
