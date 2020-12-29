@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Minitube API
-  version: 2.0.0
+  version: 2.1.0
   contact:
     name: Kevin Del Castillo Ramirez
     email: quebin31@gmail.com
@@ -51,38 +51,10 @@ paths:
       responses:
         "200":
           description: Successful operation.
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
-  "/detectAndSaveLabels":
-    description: |
-      Operations related to labels detection and save.
-    post:
-      summary: Detect and save video labels.
-      description: |
-        Request label detection for the specified video id, this will detect 
-        labels for the previously generated thumbnail, save them on DynamoDB 
-        and return them.
-      operationId: detectAndSaveLabels
-      requestBody:
-        description: Video id.
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                video_id:
-                  description: Video id.
-                  type: string
-      responses:
-        "200":
-          description: Successful operation.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DetectAndSaveLabelsResponse"
+                $ref: "#/components/schemas/GenerateThumbnailResponse"
         "400":
           $ref: "#/components/responses/BadRequestError"
         "500":
@@ -137,7 +109,7 @@ components:
           type: number
           format: seconds
 
-    DetectAndSaveLabelsResponse:
+    GenerateThumbnailResponse:
       properties:
         labels:
           description: Thumbnail labels.
