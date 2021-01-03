@@ -11,6 +11,12 @@ using `ffmpeg`, after it's generated we store label information on DynamoDB.
 ## HTTP API 
 The API specification is available on [`api/openapi.yml`](api/openapi.yml), a more human friendly documentation is available at the [repository page](https://white-leaf-devs.github.io/minitube-backend/).
 
+## Terraform
+Terraform configuration files are included, if you want to apply all the changes just run `make apply`.
+
+**Note:** Elastic Container Registries must be manually created in AWS.
+
+
 ## Frontend 
 The frontend code is available on: [MBlev/minitube-frontend](https://github.com/MBlev/minitube-frontend)
 
